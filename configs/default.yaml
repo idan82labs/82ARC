@@ -1,0 +1,80 @@
+# ARC Solver Unified - Default Configuration
+# Override with environment variables or custom config file
+
+app:
+  env: ${APP_ENV:local}
+  host: ${APP_HOST:0.0.0.0}
+  port: ${APP_PORT:8000}
+  debug: false
+
+# Strategy profiles
+default_strategy: default
+
+strategies:
+  default:
+    cost_budget_usd: 5.0
+    solver:
+      max_iterations: 10
+      max_hypotheses_per_iteration: 3
+      max_revision_attempts: 3
+      max_cost_per_task: 5.0
+      max_tokens_per_task: 500000
+      parallel_hypotheses: true
+      stop_on_solved: true
+    mcts:
+      max_iterations: 5
+      exploration_weight: 1.41
+      max_depth: 3
+      parallel_expansions: 2
+    augmentation:
+      enable_rotation: true
+      enable_flip: true
+      enable_color_permutation: false
+      rotation_angles: [90, 180, 270]
+  
+  fast:
+    cost_budget_usd: 2.0
+    solver:
+      max_iterations: 5
+      max_hypotheses_per_iteration: 2
+      max_revision_attempts: 2
+      max_cost_per_task: 2.0
+      max_tokens_per_task: 200000
+      parallel_hypotheses: true
+      stop_on_solved: true
+    mcts:
+      max_iterations: 3
+      exploration_weight: 1.41
+      max_depth: 2
+      parallel_expansions: 1
+  
+  thorough:
+    cost_budget_usd: 10.0
+    solver:
+      max_iterations: 15
+      max_hypotheses_per_iteration: 5
+      max_revision_attempts: 5
+      max_cost_per_task: 10.0
+      max_tokens_per_task: 1000000
+      parallel_hypotheses: true
+      stop_on_solved: true
+    mcts:
+      max_iterations: 10
+      exploration_weight: 1.41
+      max_depth: 4
+      parallel_expansions: 3
+
+# Tool configuration
+tools:
+  execution_timeout: 5.0
+  max_memory_mb: 256
+  sandbox_mode: inprocess  # or "subprocess" for more isolation
+
+# Model assignments (references to model definitions)
+# SMALL MODELS ONLY - proving orchestration beats raw model size
+models:
+  solver: qwen-coder-32b-groq  # 32B - code generation
+  reasoner: qwen-7b-together   # 7B - reasoning (small!)
+  critic: qwen-7b-together     # 7B - critique (small!)
+  verifier: llama-8b-groq      # 8B - verification (small!)
+  mcts_solver: qwen-7b-together  # 7B - MCTS tactic generation (small!)

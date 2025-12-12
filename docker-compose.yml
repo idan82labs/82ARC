@@ -1,0 +1,39 @@
+version: "3.9"
+
+services:
+  app:
+    build: .
+    restart: unless-stopped
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=docker
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./arc_solver:/app/arc_solver:ro
+      - ./configs:/app/configs:ro
+      - ./data:/app/data
+      - ./results:/app/results
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+  # Development service with hot reload
+  dev:
+    build: .
+    env_file:
+      - .env
+    environment:
+      - APP_ENV=development
+    ports:
+      - "8000:8000"
+    volumes:
+      - ./arc_solver:/app/arc_solver
+      - ./configs:/app/configs
+      - ./data:/app/data
+      - ./results:/app/results
+    command: uvicorn arc_solver.main:app --host 0.0.0.0 --port 8000 --reload
