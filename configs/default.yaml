@@ -71,10 +71,10 @@ tools:
   sandbox_mode: inprocess  # or "subprocess" for more isolation
 
 # Model assignments (references to model definitions)
-# SMALL MODELS ONLY - proving orchestration beats raw model size
+# SMALL MODELS ONLY (7B-32B) - proving orchestration beats raw model size
 models:
-  solver: qwen-coder-32b-groq  # 32B - code generation
-  reasoner: qwen-7b-together   # 7B - reasoning (small!)
-  critic: qwen-7b-together     # 7B - critique (small!)
-  verifier: llama-8b-groq      # 8B - verification (small!)
-  mcts_solver: qwen-7b-together  # 7B - MCTS tactic generation (small!)
+  solver: qwen3-coder-32b-groq      # 32B - code generation (Qwen 3)
+  reasoner: qwen3-8b-groq            # 8B - reasoning (Qwen 3)
+  critic: deepseek-r1-32b            # 32B - critique/review (DeepSeek R1)
+  verifier: llama4-scout-8b-groq     # 8B - verification (Llama 4 Scout)
+  mcts_solver: qwen3-7b-together     # 7B - MCTS tactic generation (Qwen 3)

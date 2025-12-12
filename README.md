@@ -66,17 +66,17 @@ ARC is particularly interesting because:
 
 ### Small Models by Design
 
-All models in the system are intentionally small:
+All models in the system are intentionally small (December 2025 configuration):
 
 | Role | Model | Parameters |
 |------|-------|------------|
-| Solver | Qwen2.5-Coder-32B | 32B |
-| Reasoner | Qwen2.5-7B | 7B |
-| Critic | Qwen2.5-7B | 7B |
-| Verifier | Llama-3.1-8B | 8B |
-| MCTS Solver | Qwen2.5-7B | 7B |
+| Solver | Qwen3-Coder-32B | 32B |
+| Reasoner | Qwen3-8B | 8B |
+| Critic | DeepSeek-R1-32B | 32B |
+| Verifier | Llama-4-Scout-8B | 8B |
+| MCTS Solver | Qwen3-7B | 7B |
 
-This contrasts with approaches using GPT-4 (estimated 1.7T parameters) or other frontier models.
+This contrasts with approaches using GPT-5.2 or other frontier models (estimated 2T+ parameters).
 
 ### Real Execution, Not Heuristics
 
@@ -234,11 +234,11 @@ Configuration is managed via YAML files. See `configs/default.yaml`:
 
 ```yaml
 models:
-  solver: qwen-coder-32b-groq
-  reasoner: qwen-7b-together
-  critic: qwen-7b-together
-  verifier: llama-8b-groq
-  mcts_solver: qwen-7b-together
+  solver: qwen3-coder-32b-groq      # 32B - code generation (Qwen 3)
+  reasoner: qwen3-8b-groq            # 8B - reasoning (Qwen 3)
+  critic: deepseek-r1-32b            # 32B - critique/review (DeepSeek R1)
+  verifier: llama4-scout-8b-groq     # 8B - verification (Llama 4 Scout)
+  mcts_solver: qwen3-7b-together     # 7B - MCTS tactic generation (Qwen 3)
 
 strategies:
   default:
@@ -307,7 +307,7 @@ This project builds on several research directions:
 
 | System | Approach | Model Size | Est. Accuracy |
 |--------|----------|------------|---------------|
-| Frontier APIs | Single large model | 200B-1.7T | 40-55% |
+| Frontier APIs (GPT-5.2) | Single large model | 2T+ | 50-60% |
 | NVARC | Custom training | 7B-70B | 24% |
 | ARChitects (TTT) | Test-time training | Variable | 53.5% |
 | **82ARC** | Multi-agent orchestration | 7B-32B | In development |
@@ -334,10 +334,10 @@ Contributions are welcome. Areas of particular interest:
 If you use this work in your research:
 
 ```bibtex
-@software{82arc2024,
+@software{82arc2025,
   title={82ARC: Small Models, Smart Orchestration for ARC-AGI},
-  year={2024},
-  url={https://github.com/YOUR_USERNAME/82ARC}
+  year={2025},
+  url={https://github.com/idan82labs/82ARC}
 }
 ```
 

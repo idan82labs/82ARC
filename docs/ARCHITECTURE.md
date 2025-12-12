@@ -251,25 +251,43 @@ class MCTSNode(BaseModel):
 
 ## Configuration (`arc_solver/config.py`)
 
-### Model Registry
+### Model Registry (December 2025)
+
+All models are intentionally small (7B-32B parameters):
 
 ```python
 MODEL_DEFINITIONS = {
-    "qwen-coder-32b-groq": ModelSpec(
+    "qwen3-coder-32b-groq": ModelSpec(
         provider=Provider.GROQ,
-        model_id="qwen-2.5-coder-32b",
+        model_id="qwen-3-coder-32b",
         max_tokens=8192,
         temperature=0.7,
         cost_per_million_input=0.29,
         cost_per_million_output=0.59,
     ),
-    "qwen-7b-together": ModelSpec(
+    "qwen3-7b-together": ModelSpec(
         provider=Provider.TOGETHER,
-        model_id="Qwen/Qwen2.5-7B-Instruct-Turbo",
+        model_id="Qwen/Qwen3-7B-Instruct",
         max_tokens=8192,
         temperature=0.7,
-        cost_per_million_input=0.30,
-        cost_per_million_output=0.30,
+        cost_per_million_input=0.20,
+        cost_per_million_output=0.20,
+    ),
+    "llama4-scout-8b-groq": ModelSpec(
+        provider=Provider.GROQ,
+        model_id="llama-4-scout-8b",
+        max_tokens=2048,
+        temperature=0.2,
+        cost_per_million_input=0.05,
+        cost_per_million_output=0.08,
+    ),
+    "deepseek-r1-32b": ModelSpec(
+        provider=Provider.TOGETHER,
+        model_id="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
+        max_tokens=8192,
+        temperature=0.7,
+        cost_per_million_input=0.89,
+        cost_per_million_output=0.89,
     ),
     # ...
 }
@@ -279,11 +297,11 @@ MODEL_DEFINITIONS = {
 
 ```yaml
 models:
-  solver: qwen-coder-32b-groq      # Code generation
-  reasoner: qwen-7b-together       # Strategy generation
-  critic: qwen-7b-together         # Hypothesis evaluation
-  verifier: llama-8b-groq          # Quick validation
-  mcts_solver: qwen-7b-together    # MCTS code generation
+  solver: qwen3-coder-32b-groq      # 32B - Code generation (Qwen 3)
+  reasoner: qwen3-8b-groq            # 8B - Strategy generation (Qwen 3)
+  critic: deepseek-r1-32b            # 32B - Hypothesis evaluation (DeepSeek R1)
+  verifier: llama4-scout-8b-groq     # 8B - Quick validation (Llama 4 Scout)
+  mcts_solver: qwen3-7b-together     # 7B - MCTS code generation (Qwen 3)
 ```
 
 ### Strategy Profiles

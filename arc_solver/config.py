@@ -58,12 +58,12 @@ class ModelSpec(BaseModel):
     cost_per_million_output: float = 0.0
 
 class ModelsConfig(BaseModel):
-    # Role assignments
-    solver: str = "qwen-coder-32b-groq"  # Groq - fast code generation (main hypothesis)
-    reasoner: str = "qwen3-thinking-together"  # Together AI - reasoning/thinking model
-    critic: str = "deepseek-r1-llama-70b"  # Together AI - reasoning model for critique
-    verifier: str = "llama-8b-groq"  # Groq - fast verification
-    mcts_solver: str = "qwen-7b-together"  # Together AI 7B - for MCTS tactic generation (small model, avoids rate limits)
+    # Role assignments - ALL SMALL MODELS (7B-32B)
+    solver: str = "qwen3-coder-32b-groq"      # 32B - code generation
+    reasoner: str = "qwen3-8b-groq"            # 8B - reasoning
+    critic: str = "deepseek-r1-32b"            # 32B - critique/review
+    verifier: str = "llama4-scout-8b-groq"     # 8B - verification
+    mcts_solver: str = "qwen3-7b-together"     # 7B - MCTS tactic generation
     
     # Model definitions
     definitions: Dict[str, ModelSpec] = Field(default_factory=dict)
@@ -159,54 +159,63 @@ def _load_from_env() -> Dict[str, ProviderConfig]:
     return providers
 
 def _default_model_definitions() -> Dict[str, ModelSpec]:
-    """Default model definitions."""
+    """Default model definitions (December 2025)."""
     return {
-        # Groq models (fastest)
-        "qwen-coder-32b-groq": ModelSpec(
+        # =====================================================================
+        # SMALL MODELS (7B-32B) - Core of our approach
+        # =====================================================================
+
+        # Qwen 3 Coder 32B on Groq (fastest inference)
+        "qwen3-coder-32b-groq": ModelSpec(
             provider=Provider.GROQ,
-            model_id="qwen-2.5-coder-32b",
+            model_id="qwen-3-coder-32b",
             max_tokens=8192,
             temperature=0.7,
             cost_per_million_input=0.29,
             cost_per_million_output=0.59,
         ),
-        # Qwen3 Thinking model on Together AI (serverless, for reasoning)
-        "qwen3-thinking-together": ModelSpec(
-            provider=Provider.TOGETHER,
-            model_id="Qwen/Qwen3-235B-A22B-Thinking-2507",
-            max_tokens=8192,
-            temperature=0.7,
-            cost_per_million_input=1.50,
-            cost_per_million_output=1.50,
-        ),
-        "llama-8b-groq": ModelSpec(
+
+        # Qwen 3 8B on Groq (small, fast reasoning)
+        "qwen3-8b-groq": ModelSpec(
             provider=Provider.GROQ,
-            model_id="llama-3.1-8b-instant",
+            model_id="qwen-3-8b",
+            max_tokens=4096,
+            temperature=0.7,
+            cost_per_million_input=0.05,
+            cost_per_million_output=0.10,
+        ),
+
+        # Llama 4 Scout 8B on Groq (verification)
+        "llama4-scout-8b-groq": ModelSpec(
+            provider=Provider.GROQ,
+            model_id="llama-4-scout-8b",
             max_tokens=2048,
             temperature=0.2,
             cost_per_million_input=0.05,
             cost_per_million_output=0.08,
         ),
-        
-        # Together models - small models for MCTS
-        "qwen-7b-together": ModelSpec(
+
+        # Qwen 3 7B on Together AI (MCTS tactic generation)
+        "qwen3-7b-together": ModelSpec(
             provider=Provider.TOGETHER,
-            model_id="Qwen/Qwen2.5-7B-Instruct-Turbo",
+            model_id="Qwen/Qwen3-7B-Instruct",
             max_tokens=8192,
             temperature=0.7,
-            cost_per_million_input=0.30,
-            cost_per_million_output=0.30,
+            cost_per_million_input=0.20,
+            cost_per_million_output=0.20,
         ),
 
-        # OpenRouter models - Qwen2.5-Coder-7B (small coder)
-        "qwen-coder-7b-openrouter": ModelSpec(
+        # Qwen 3 Coder 7B on OpenRouter (alternative small coder)
+        "qwen3-coder-7b-openrouter": ModelSpec(
             provider=Provider.OPENROUTER,
-            model_id="qwen/qwen-2.5-coder-7b-instruct",
+            model_id="qwen/qwen-3-coder-7b-instruct",
             max_tokens=8192,
             temperature=0.7,
             cost_per_million_input=0.15,
             cost_per_million_output=0.15,
         ),
+
+        # DeepSeek R1 Distill 32B (reasoning, stays within small model range)
         "deepseek-r1-32b": ModelSpec(
             provider=Provider.TOGETHER,
             model_id="deepseek-ai/DeepSeek-R1-Distill-Qwen-32B",
@@ -215,24 +224,18 @@ def _default_model_definitions() -> Dict[str, ModelSpec]:
             cost_per_million_input=0.89,
             cost_per_million_output=0.89,
         ),
-        # DeepSeek R1 Distill Llama 70B on Together AI (serverless, for critic)
-        "deepseek-r1-llama-70b": ModelSpec(
-            provider=Provider.TOGETHER,
-            model_id="deepseek-ai/DeepSeek-R1-Distill-Llama-70B",
-            max_tokens=4096,
-            temperature=0.3,
-            cost_per_million_input=0.90,
-            cost_per_million_output=0.90,
-        ),
-        
-        # Frontier fallbacks
-        "gpt-4o": ModelSpec(
+
+        # =====================================================================
+        # FRONTIER FALLBACKS (for comparison only, not default)
+        # =====================================================================
+
+        "gpt-5.2-mini": ModelSpec(
             provider=Provider.OPENAI,
-            model_id="gpt-4o",
+            model_id="gpt-5.2-mini",
             max_tokens=4096,
             temperature=0.7,
-            cost_per_million_input=2.50,
-            cost_per_million_output=10.00,
+            cost_per_million_input=3.00,
+            cost_per_million_output=12.00,
         ),
         "claude-sonnet": ModelSpec(
             provider=Provider.ANTHROPIC,
