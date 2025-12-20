@@ -26,23 +26,42 @@ from .dns_enum import DNSEnumerator, quick_enum as dns_quick, deep_enum as dns_d
 from .http_probe import HTTPProber, quick_probe, stealth_probe
 from .content_analyzer import ContentAnalyzer, JSAnalyzer, analyze_page, analyze_js_files
 from .autonomous import (
-    AutonomousRecon, 
-    quick_enum, 
-    full_enum, 
+    AutonomousRecon,
+    quick_enum,
+    full_enum,
     stealth_enum
+)
+from .advanced_recon import (
+    AdvancedRecon,
+    ReconDepth,
+    PassiveDNSRecord,
+    ASNInfo,
+    CloudAsset,
+    CertificateInfo,
+    quick_recon,
+    deep_recon,
+    exhaustive_recon,
 )
 
 __all__ = [
     # Main classes
     "AutonomousRecon",
-    "DNSEnumerator", 
+    "DNSEnumerator",
     "HTTPProber",
     "ContentAnalyzer",
     "JSAnalyzer",
-    
+
+    # Advanced recon
+    "AdvancedRecon",
+    "ReconDepth",
+    "PassiveDNSRecord",
+    "ASNInfo",
+    "CloudAsset",
+    "CertificateInfo",
+
     # Quick functions
     "quick_enum",
-    "full_enum", 
+    "full_enum",
     "stealth_enum",
     "dns_quick",
     "dns_deep",
@@ -50,6 +69,9 @@ __all__ = [
     "stealth_probe",
     "analyze_page",
     "analyze_js_files",
+    "quick_recon",
+    "deep_recon",
+    "exhaustive_recon",
 ]
 
 # MCP Tool Registration Schema

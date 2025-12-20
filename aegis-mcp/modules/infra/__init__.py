@@ -46,22 +46,56 @@ from .dns import (
     get_dns_provider
 )
 
+from .c2_framework import (
+    C2Server,
+    Beacon,
+    Redirector,
+    MalleableProfile,
+    DNSChannel,
+    DomainFrontingConfig,
+    InfrastructureDeployer,
+    OperationalSecurity,
+    C2Protocol,
+    BeaconStatus,
+    TaskType,
+    MALLEABLE_PROFILES,
+    create_c2_server,
+    create_redirector,
+    deploy_infrastructure,
+)
+
 __all__ = [
     # Providers
     "CloudProvider",
-    "DigitalOceanProvider", 
+    "DigitalOceanProvider",
     "LinodeProvider",
     "VultrProvider",
     "AWSLightsailProvider",
     "get_provider",
     # Management
     "InfrastructureManager",
-    "C2Configurator", 
+    "C2Configurator",
     "OperationOrchestrator",
     # DNS
     "CloudflareDNS",
     "Route53DNS",
     "NamecheapDNS",
     "DNSManager",
-    "get_dns_provider"
+    "get_dns_provider",
+    # C2 Framework
+    "C2Server",
+    "Beacon",
+    "Redirector",
+    "MalleableProfile",
+    "DNSChannel",
+    "DomainFrontingConfig",
+    "InfrastructureDeployer",
+    "OperationalSecurity",
+    "C2Protocol",
+    "BeaconStatus",
+    "TaskType",
+    "MALLEABLE_PROFILES",
+    "create_c2_server",
+    "create_redirector",
+    "deploy_infrastructure",
 ]
