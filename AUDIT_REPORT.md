@@ -387,8 +387,60 @@ No `/api/health` endpoint for monitoring.
 
 ---
 
+## Second Audit Findings (2025-12-20)
+
+### Additional Issues Found and Fixed:
+
+#### 9. ✅ FIXED: Stripe Metadata Bug (Clerk ID vs UUID)
+**Problem:** `/api/credits/route.ts` POST was passing internal `user.id` (UUID) to Stripe metadata, but the webhook expected Clerk ID and called `getUserByClerkId()`.
+
+**Impact:** Credit purchases would fail - users would pay but not receive credits.
+
+**Fix:** Changed to pass `clerkId` (from Clerk auth) to `createCheckoutSession()`.
+
+---
+
+#### 10. ✅ FIXED: Deprecated Clerk Middleware
+**Problem:** `middleware.ts` used deprecated `authMiddleware` but package is Clerk v5+.
+
+**Fix:** Migrated to `clerkMiddleware` with `createRouteMatcher` pattern.
+
+---
+
+#### 11. ✅ FIXED: Hardcoded Admin Bypass Security Issue
+**Problem:** `admin/stats/route.ts` had hardcoded `'admin_dev_key'` bypass that would work in production.
+
+**Fix:** Changed to only allow dev key when `NODE_ENV === 'development'`.
+
+---
+
+#### 12. ✅ FIXED: Missing Environment Variables
+**Problem:** `.env.example` was missing `ADMIN_API_KEY` and `USE_REAL_ADMIN_DATA`.
+
+**Fix:** Added to `.env.example` with documentation.
+
+---
+
+### Remaining Issues (Lower Priority):
+
+| Issue | Priority | Description |
+|-------|----------|-------------|
+| Sidebar hardcoded admin | P1 | `isAdmin = true` needs real check |
+| Playground missing tools | P1 | Only 7 of 54 tools in UI |
+| Pricing page missing tools | P2 | Missing ~10 tools from listing |
+| pathMappings incomplete | P2 | Fallback mappings missing many tools |
+| No rate limiting | P2 | API endpoints unprotected |
+| No input validation | P2 | Using manual validation |
+
+---
+
 ## Conclusion
 
-The Aegis codebase has significant gaps between the database schema and application code that would prevent the application from functioning in production. The most critical issues involve column name mismatches and missing RPC functions.
+After the second comprehensive audit, **all critical P0 issues are now resolved**. The application should function correctly for:
+- User authentication and creation
+- Credit purchases via Stripe
+- API key management
+- Usage logging
+- Admin dashboard access
 
-**Immediate action is required** on the P0 issues before any deployment.
+The remaining P1-P2 issues are primarily UI completeness and security hardening that do not block core functionality.

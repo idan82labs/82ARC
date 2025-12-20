@@ -27,9 +27,9 @@ export async function GET(req: NextRequest) {
 
 // POST - Create a Stripe checkout session for purchasing credits
 export async function POST(req: NextRequest) {
-  const { userId } = await auth();
+  const { userId: clerkId } = await auth();
 
-  if (!userId) {
+  if (!clerkId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
@@ -39,7 +39,8 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid package' }, { status: 400 });
   }
 
-  const user = await getUserByClerkId(userId);
+  // Verify user exists in our database
+  const user = await getUserByClerkId(clerkId);
 
   if (!user) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
@@ -49,8 +50,10 @@ export async function POST(req: NextRequest) {
   const successUrl = `${baseUrl}/dashboard/billing?success=true`;
   const cancelUrl = `${baseUrl}/dashboard/billing?canceled=true`;
 
+  // FIXED: Pass Clerk ID (not internal UUID) to Stripe metadata
+  // The webhook will use this Clerk ID to look up the user
   const session = await createCheckoutSession(
-    user.id,
+    clerkId,
     packageKey,
     successUrl,
     cancelUrl

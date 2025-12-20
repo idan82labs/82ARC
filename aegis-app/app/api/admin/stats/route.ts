@@ -13,8 +13,13 @@ const supabase = createClient(
 async function isAdmin(request: NextRequest): Promise<boolean> {
   const apiKey = request.headers.get('x-api-key');
 
-  // For development/demo - check for admin API key
-  if (apiKey === process.env.ADMIN_API_KEY || apiKey === 'admin_dev_key') {
+  // Check for configured admin API key (required in production)
+  if (process.env.ADMIN_API_KEY && apiKey === process.env.ADMIN_API_KEY) {
+    return true;
+  }
+
+  // Development-only bypass - NEVER use in production
+  if (process.env.NODE_ENV === 'development' && apiKey === 'admin_dev_key') {
     return true;
   }
 
