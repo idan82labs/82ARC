@@ -1,59 +1,249 @@
 """
-Unified vulnerability scanner.
+Unified Vulnerability Scanner - Enhanced Edition
+
+Comprehensive vulnerability scanning with support for:
+- SQL Injection (error-based, blind, time-based, UNION)
+- XSS (reflected, stored, DOM-based)
+- SSRF (internal network, cloud metadata)
+- SSTI (13+ template engines)
+- XXE (classic, blind, error-based)
+- LFI/Path Traversal (with RCE via log poisoning)
+- JWT Attacks (none alg, weak secrets, kid injection)
+- Insecure Deserialization (coming soon)
+
+Based on OWASP Top 10, PortSwigger research, and real-world
+penetration testing methodologies.
 """
 from .sqli import SQLiScanner
 from .xss import XSSScanner
 from .ssrf import SSRFScanner
-from typing import List, Dict, Optional
+from .ssti import SSTIScanner
+from .xxe import XXEScanner
+from .lfi import LFIScanner
+from .jwt import JWTScanner
+from typing import List, Dict, Optional, Any
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from dataclasses import dataclass, field
+from enum import Enum
 import json
 import time
 
+
+class ScanMode(Enum):
+    """Scanning intensity modes."""
+    QUICK = "quick"  # Fast scan, common payloads only
+    STANDARD = "standard"  # Balanced scan
+    THOROUGH = "thorough"  # Deep scan, all payloads, slower
+    STEALTH = "stealth"  # Low-noise, evade WAF/IDS
+
+
 class VulnScanner:
-    def __init__(self, callback_host: str = None, threads: int = 10):
+    """
+    Enhanced unified vulnerability scanner.
+
+    Features:
+    - Multi-vulnerability type detection
+    - Concurrent scanning with thread pooling
+    - WAF detection and evasion
+    - Recon pipeline integration
+    - Multiple export formats
+    - OWASP Top 10 mapping
+    - Severity-based prioritization
+    """
+
+    # OWASP Top 10 2021 mapping
+    OWASP_MAPPING = {
+        "sqli": "A03:2021 - Injection",
+        "xss": "A03:2021 - Injection",
+        "ssrf": "A10:2021 - SSRF",
+        "ssti": "A03:2021 - Injection",
+        "xxe": "A05:2021 - Security Misconfiguration",
+        "lfi": "A01:2021 - Broken Access Control",
+        "jwt": "A07:2021 - Identification and Authentication Failures",
+    }
+
+    def __init__(self, callback_host: str = None, threads: int = 10,
+                 mode: ScanMode = ScanMode.STANDARD):
+        self.callback_host = callback_host
+        self.threads = threads
+        self.mode = mode
+
+        # Initialize all scanners
         self.sqli = SQLiScanner()
         self.xss = XSSScanner()
         self.ssrf = SSRFScanner(callback_host)
-        self.threads = threads
+        self.ssti = SSTIScanner(callback_host)
+        self.xxe = XXEScanner(callback_host)
+        self.lfi = LFIScanner(callback_host)
+        self.jwt = JWTScanner(callback_host)
+
         self.findings = []
+        self.waf_detected = False
+        self.detected_technologies = []
+
         self.stats = {
             "endpoints_scanned": 0,
             "params_tested": 0,
             "vulns_found": 0,
+            "by_type": {},
+            "by_severity": {"CRITICAL": 0, "HIGH": 0, "MEDIUM": 0, "LOW": 0},
             "start_time": None,
-            "end_time": None
+            "end_time": None,
+            "waf_detected": False,
         }
     
-    def scan_endpoint(self, url: str, params: List[str] = None, 
-                      scan_types: List[str] = None) -> List[Dict]:
-        """Scan single endpoint.
-        
+    def scan_endpoint(self, url: str, params: List[str] = None,
+                      scan_types: List[str] = None,
+                      detect_waf: bool = True) -> List[Dict]:
+        """
+        Scan single endpoint for multiple vulnerability types.
+
         Args:
             url: Target URL with query params
-            params: Specific params to test (None = all)
-            scan_types: ["sqli", "xss", "ssrf"] or None for all
+            params: Specific params to test (None = auto-detect)
+            scan_types: List of vuln types or None for all
+                       Options: sqli, xss, ssrf, ssti, xxe, lfi
+            detect_waf: Enable WAF detection first
+
+        Returns:
+            List of vulnerability findings
         """
         findings = []
-        
+
         if params is None:
             from urllib.parse import urlparse, parse_qs
             params = list(parse_qs(urlparse(url).query).keys())
-        
+
+        # Default scan types based on mode
         if scan_types is None:
-            scan_types = ["sqli", "xss", "ssrf"]
-        
+            if self.mode == ScanMode.QUICK:
+                scan_types = ["sqli", "xss"]
+            elif self.mode == ScanMode.STEALTH:
+                scan_types = ["sqli", "xss", "lfi"]
+            else:
+                scan_types = ["sqli", "xss", "ssrf", "ssti", "lfi"]
+
+        # WAF detection
+        if detect_waf:
+            self._detect_waf(url)
+            self.stats["waf_detected"] = self.waf_detected
+
         for param in params:
             self.stats["params_tested"] += 1
-            
+
+            # Classic web vulnerabilities
             if "sqli" in scan_types:
-                findings.extend(self.sqli.scan_param(url, param))
+                sqli_findings = self.sqli.scan_param(url, param)
+                self._enrich_findings(sqli_findings, "sqli")
+                findings.extend(sqli_findings)
+
             if "xss" in scan_types:
-                findings.extend(self.xss.scan_param(url, param))
+                xss_findings = self.xss.scan_param(url, param)
+                self._enrich_findings(xss_findings, "xss")
+                findings.extend(xss_findings)
+
             if "ssrf" in scan_types:
-                findings.extend(self.ssrf.scan_param(url, param))
-        
+                ssrf_findings = self.ssrf.scan_param(url, param)
+                self._enrich_findings(ssrf_findings, "ssrf")
+                findings.extend(ssrf_findings)
+
+            # Advanced injection vulnerabilities
+            if "ssti" in scan_types:
+                ssti_findings = self.ssti.scan_param(url, param)
+                self._enrich_findings(ssti_findings, "ssti")
+                findings.extend(ssti_findings)
+
+            if "lfi" in scan_types:
+                lfi_findings = self.lfi.scan_param(url, param)
+                self._enrich_findings(lfi_findings, "lfi")
+                findings.extend(lfi_findings)
+
+        # XXE requires special handling (POST with XML body)
+        if "xxe" in scan_types:
+            xxe_findings = self.xxe.scan_endpoint(url)
+            self._enrich_findings(xxe_findings, "xxe")
+            findings.extend(xxe_findings)
+
         self.stats["endpoints_scanned"] += 1
         return findings
+
+    def scan_jwt(self, token: str) -> List[Dict]:
+        """
+        Scan a JWT token for vulnerabilities.
+
+        Args:
+            token: JWT token string
+
+        Returns:
+            List of JWT vulnerability findings
+        """
+        findings = self.jwt.scan_token(token)
+        self._enrich_findings(findings, "jwt")
+        return findings
+
+    def _detect_waf(self, url: str) -> bool:
+        """Detect if WAF is present."""
+        import requests
+
+        waf_test_payloads = [
+            "' OR '1'='1",
+            "<script>alert(1)</script>",
+            "../../../etc/passwd",
+        ]
+
+        waf_signatures = [
+            "cloudflare", "akamai", "imperva", "f5", "mod_security",
+            "aws waf", "barracuda", "citrix", "fortiweb", "sucuri",
+            "wordfence", "comodo", "incapsula", "radware"
+        ]
+
+        try:
+            for payload in waf_test_payloads:
+                resp = requests.get(
+                    url, params={"test": payload},
+                    timeout=5, verify=False
+                )
+
+                # Check response headers
+                for header in ["Server", "X-Powered-By", "Via"]:
+                    val = resp.headers.get(header, "").lower()
+                    for sig in waf_signatures:
+                        if sig in val:
+                            self.waf_detected = True
+                            return True
+
+                # Check response body
+                body_lower = resp.text.lower()
+                if any(sig in body_lower for sig in waf_signatures):
+                    self.waf_detected = True
+                    return True
+
+                # Check for blocked status codes
+                if resp.status_code in [403, 406, 429, 503]:
+                    self.waf_detected = True
+                    return True
+
+        except Exception:
+            pass
+
+        return False
+
+    def _enrich_findings(self, findings: List[Dict], vuln_type: str):
+        """Add metadata to findings."""
+        for finding in findings:
+            if "owasp" not in finding:
+                finding["owasp"] = self.OWASP_MAPPING.get(vuln_type, "")
+            if "waf_detected" not in finding:
+                finding["waf_detected"] = self.waf_detected
+            if "timestamp" not in finding:
+                finding["timestamp"] = time.time()
+
+            # Update stats
+            severity = finding.get("severity", "MEDIUM")
+            self.stats["by_severity"][severity] = \
+                self.stats["by_severity"].get(severity, 0) + 1
+            self.stats["by_type"][vuln_type] = \
+                self.stats["by_type"].get(vuln_type, 0) + 1
     
     def scan_many(self, targets: List[Dict], scan_types: List[str] = None) -> List[Dict]:
         """Scan multiple targets concurrently.
