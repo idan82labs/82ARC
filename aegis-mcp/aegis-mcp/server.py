@@ -66,77 +66,198 @@ mcp = FastMCP("aegis")
 # ============================================================================
 
 CREDIT_COSTS = {
-    # AI Attack Tools - Core
-    "ai_fingerprint": 25,
-    "ai_fingerprint_enhanced": 75,       # Deep behavioral + semantic fingerprinting
-    "jailbreak_generate": 50,
-    "jailbreak_adaptive": 100,            # Adaptive multi-turn jailbreak engine
-    "jailbreak_crescendo": 150,           # Multi-turn crescendo attack
-    "jailbreak_evaluate": 25,
-    "prompt_injection_generate": 50,
-    "rag_injection_craft": 50,
-    "ai_tool_attack": 50,
+    # ═══════════════════════════════════════════════════════════════════════════
+    # AI SECURITY TESTING (Free/Pro tier)
+    # ═══════════════════════════════════════════════════════════════════════════
 
-    # AI Attack Tools - Enhanced (2024-2025 Techniques)
-    "multimodal_injection": 75,           # OCR, audio, video injection attacks
-    "function_calling_attack": 75,        # Function/tool calling exploitation
-    "structured_output_attack": 75,       # JSON/schema manipulation attacks
-    "rag_poisoning_craft": 100,           # Advanced RAG poisoning (PDF, DOCX, etc.)
+    # AI Fingerprinting
+    "ai_fingerprint": 25,             # Basic model identification
+    "ai_fingerprint_enhanced": 75,    # 7-phase deep analysis
 
-    # Agent Attack Framework (NEW)
-    "agent_attack_generate": 100,         # Generate agent-specific attacks
-    "agent_goal_hijack": 75,              # Goal hijacking attacks
-    "agent_tool_manipulate": 75,          # Tool manipulation attacks
-    "agent_memory_poison": 100,           # Memory poisoning attacks
-    "agent_observation_tamper": 75,       # Observation tampering
-    "agent_planning_exploit": 100,        # Planning/reasoning exploitation
-    "agent_react_attack": 75,             # ReAct/CoT specific attacks
-    "agent_rag_attack": 100,              # RAG-specific agent attacks
-    "agent_mcp_attack": 125,              # MCP protocol attacks
-    "agent_multihop_chain": 150,          # Multi-hop attack chains
-    "agent_test_suite": 200,              # Full agent attack test suite
+    # Jailbreak & Safety Bypass
+    "jailbreak_generate": 50,         # Generate bypass attempts
+    "jailbreak_adaptive": 100,        # ML-powered adaptive engine
+    "jailbreak_crescendo": 150,       # Multi-turn escalation attacks
+    "jailbreak_evaluate": 25,         # Evaluate success
 
-    # Recon Tools
-    "autonomous_recon": 100,
-    "dns_enum": 25,
-    "http_probe": 25,
-    "content_analyze": 25,
+    # Prompt Injection
+    "prompt_injection_generate": 50,  # Direct/indirect injection
+    "rag_injection_craft": 50,        # RAG document injection
+    "rag_poisoning_craft": 100,       # Advanced RAG poisoning
+    "ai_tool_attack": 50,             # Tool/function abuse
+
+    # Enhanced AI Attacks (Pro)
+    "multimodal_injection": 75,       # Image/audio/video injection
+    "function_calling_attack": 75,    # Function calling exploits
+    "structured_output_attack": 75,   # JSON/schema attacks
+
+    # Agent Exploitation (Pro/Enterprise)
+    "agent_attack_generate": 100,     # Generate agent attacks
+    "agent_goal_hijack": 75,          # Goal manipulation
+    "agent_tool_manipulate": 75,      # Tool abuse
+    "agent_memory_poison": 100,       # Memory corruption
+    "agent_observation_tamper": 75,   # Input manipulation
+    "agent_planning_exploit": 100,    # Planning/reasoning attacks
+    "agent_react_attack": 75,         # ReAct/CoT exploits
+    "agent_rag_attack": 100,          # RAG agent attacks
+    "agent_mcp_attack": 125,          # MCP protocol attacks
+    "agent_multihop_chain": 150,      # Multi-stage attack chains
+    "agent_test_suite": 200,          # Full security assessment
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # OFFENSIVE SECURITY (Pro/Enterprise tier)
+    # ═══════════════════════════════════════════════════════════════════════════
+
+    # Reconnaissance
+    "autonomous_recon": 100,          # Full automated recon
+    "dns_enum": 25,                   # DNS enumeration
+    "http_probe": 25,                 # HTTP service probing
+    "content_analyze": 25,            # Content/secret extraction
 
     # Vulnerability Scanning
-    "vuln_scan": 100,
-    "vuln_scan_batch": 100,
-    "sqli_scan": 50,
-    "xss_scan": 50,
-    "ssrf_scan": 50,
+    "vuln_scan": 100,                 # Comprehensive vuln scan
+    "vuln_scan_batch": 100,           # Batch scanning
+    "sqli_scan": 50,                  # SQL injection detection
+    "xss_scan": 50,                   # XSS detection
+    "ssrf_scan": 50,                  # SSRF detection
 
-    # Payload Generation
-    "generate_reverse_shell": 50,
-    "generate_webshell": 50,
-    "generate_injection": 25,
-    "generate_callback": 25,
-    "select_payloads": 50,
+    # Payload Engineering
+    "generate_reverse_shell": 50,     # Reverse shell generation
+    "generate_webshell": 50,          # Webshell generation
+    "generate_injection": 25,         # Injection payloads
+    "generate_callback": 25,          # OOB callback payloads
+    "select_payloads": 50,            # Intelligent payload selection
 
-    # Infrastructure (Enterprise only)
-    "deploy_c2_stack": 200,
-    "burn_infrastructure": 50,
-    "burn_all_infrastructure": 100,
-    "infra_status": 10,
-    "create_dns_record": 25,
+    # ═══════════════════════════════════════════════════════════════════════════
+    # ENTERPRISE (Enterprise tier only)
+    # ═══════════════════════════════════════════════════════════════════════════
 
-    # Execution
-    "harvest_credentials": 75,
-    "lateral_movement": 75,
-    "persistence_install": 75,
+    # Attack Infrastructure
+    "deploy_c2_stack": 200,           # Deploy C2 + redirectors
+    "burn_infrastructure": 50,        # Destroy single operation
+    "burn_all_infrastructure": 100,   # Emergency destroy all
+    "infra_status": 10,               # Check infrastructure
+    "create_dns_record": 25,          # DNS management
 
-    # Operations
-    "operation_start": 200,
-    "operation_execute_phase": 150,
-    "operation_status": 10,
-    "operation_abort": 25,
+    # Post-Exploitation
+    "harvest_credentials": 75,        # Credential extraction
+    "lateral_movement": 75,           # Network pivoting
+    "persistence_install": 75,        # Persistence mechanisms
 
-    # Utilities
+    # Campaign Operations
+    "operation_start": 200,           # Initialize operation
+    "operation_execute_phase": 150,   # Execute kill chain phase
+    "operation_status": 10,           # Check operation status
+    "operation_abort": 25,            # Abort and cleanup
+
+    # ═══════════════════════════════════════════════════════════════════════════
+    # UTILITIES (All tiers)
+    # ═══════════════════════════════════════════════════════════════════════════
     "list_capabilities": 0,
     "get_module_info": 0
+}
+
+# ============================================================================
+# TOOL GROUPS - For UI Display (Max 10 groups)
+# ============================================================================
+
+TOOL_GROUPS = {
+    "ai_fingerprint": {
+        "id": "ai_fingerprint",
+        "name": "AI Fingerprinting",
+        "description": "Identify AI models, detect guardrails, map capabilities and vulnerabilities",
+        "icon": "🔍",
+        "tier_required": "free",
+        "tools": ["ai_fingerprint", "ai_fingerprint_enhanced"],
+        "credit_range": "25-75"
+    },
+    "jailbreak": {
+        "id": "jailbreak",
+        "name": "Jailbreak & Bypass",
+        "description": "Generate and evaluate safety bypass techniques including multi-turn attacks",
+        "icon": "🔓",
+        "tier_required": "free",
+        "tools": ["jailbreak_generate", "jailbreak_adaptive", "jailbreak_crescendo", "jailbreak_evaluate"],
+        "credit_range": "25-150"
+    },
+    "injection": {
+        "id": "injection",
+        "name": "Prompt Injection",
+        "description": "Craft injection payloads for prompts, RAG systems, and multimodal inputs",
+        "icon": "💉",
+        "tier_required": "free",
+        "tools": ["prompt_injection_generate", "rag_injection_craft", "rag_poisoning_craft",
+                  "multimodal_injection", "function_calling_attack", "structured_output_attack", "ai_tool_attack"],
+        "credit_range": "50-100"
+    },
+    "agent_exploit": {
+        "id": "agent_exploit",
+        "name": "Agent Exploitation",
+        "description": "Attack AI agents: goal hijacking, memory poisoning, tool manipulation, MCP exploits",
+        "icon": "🤖",
+        "tier_required": "pro",
+        "tools": ["agent_attack_generate", "agent_goal_hijack", "agent_tool_manipulate",
+                  "agent_memory_poison", "agent_observation_tamper", "agent_planning_exploit",
+                  "agent_react_attack", "agent_rag_attack", "agent_mcp_attack",
+                  "agent_multihop_chain", "agent_test_suite"],
+        "credit_range": "75-200"
+    },
+    "recon": {
+        "id": "recon",
+        "name": "Reconnaissance",
+        "description": "Target discovery: OSINT, DNS enum, HTTP probing, content/secret extraction",
+        "icon": "🎯",
+        "tier_required": "pro",
+        "tools": ["autonomous_recon", "dns_enum", "http_probe", "content_analyze"],
+        "credit_range": "25-100"
+    },
+    "vuln_scan": {
+        "id": "vuln_scan",
+        "name": "Vulnerability Scanner",
+        "description": "SQLi, XSS, SSRF detection with WAF bypass and blind injection techniques",
+        "icon": "🔎",
+        "tier_required": "pro",
+        "tools": ["vuln_scan", "vuln_scan_batch", "sqli_scan", "xss_scan", "ssrf_scan"],
+        "credit_range": "50-100"
+    },
+    "payload": {
+        "id": "payload",
+        "name": "Payload Engineering",
+        "description": "Generate reverse shells, webshells, and injection payloads with evasion",
+        "icon": "⚡",
+        "tier_required": "pro",
+        "tools": ["generate_reverse_shell", "generate_webshell", "generate_injection",
+                  "generate_callback", "select_payloads"],
+        "credit_range": "25-50"
+    },
+    "infrastructure": {
+        "id": "infrastructure",
+        "name": "Attack Infrastructure",
+        "description": "Deploy ephemeral C2, redirectors, DNS management, and burn procedures",
+        "icon": "🏗️",
+        "tier_required": "enterprise",
+        "tools": ["deploy_c2_stack", "burn_infrastructure", "burn_all_infrastructure",
+                  "infra_status", "create_dns_record"],
+        "credit_range": "10-200"
+    },
+    "post_exploit": {
+        "id": "post_exploit",
+        "name": "Post-Exploitation",
+        "description": "Credential harvesting, lateral movement, persistence with OPSEC awareness",
+        "icon": "👤",
+        "tier_required": "enterprise",
+        "tools": ["harvest_credentials", "lateral_movement", "persistence_install"],
+        "credit_range": "75"
+    },
+    "campaigns": {
+        "id": "campaigns",
+        "name": "Campaign Operations",
+        "description": "Plan and execute full red team campaigns with kill chain automation",
+        "icon": "🎖️",
+        "tier_required": "enterprise",
+        "tools": ["operation_start", "operation_execute_phase", "operation_status", "operation_abort"],
+        "credit_range": "10-200"
+    }
 }
 
 # ============================================================================
@@ -145,43 +266,36 @@ CREDIT_COSTS = {
 
 TIER_ACCESS = {
     "free": [
-        # Free tier: Basic AI attack tools only
+        # AI Security Testing - Core (basic tools only)
         "ai_fingerprint",
-        "jailbreak_generate",
-        "jailbreak_evaluate",
-        "prompt_injection_generate",
-        "rag_injection_craft",
-        "ai_tool_attack",
-        "list_capabilities",
-        "get_module_info"
+        "jailbreak_generate", "jailbreak_evaluate",
+        "prompt_injection_generate", "rag_injection_craft", "ai_tool_attack",
+        # Utilities
+        "list_capabilities", "get_module_info"
     ],
     "pro": [
-        # Pro tier: All AI attack tools + recon + vuln + payload
-        # Core AI attacks
+        # All AI Security Tools
         "ai_fingerprint", "ai_fingerprint_enhanced",
         "jailbreak_generate", "jailbreak_adaptive", "jailbreak_crescendo", "jailbreak_evaluate",
-        "prompt_injection_generate", "rag_injection_craft", "ai_tool_attack",
-        # Enhanced AI attacks (2024-2025)
-        "multimodal_injection", "function_calling_attack",
-        "structured_output_attack", "rag_poisoning_craft",
-        # Agent attacks (subset)
+        "prompt_injection_generate", "rag_injection_craft", "rag_poisoning_craft", "ai_tool_attack",
+        "multimodal_injection", "function_calling_attack", "structured_output_attack",
+        # Agent Exploitation
         "agent_attack_generate", "agent_goal_hijack", "agent_tool_manipulate",
-        "agent_react_attack", "agent_rag_attack",
-        # Recon & Vuln
+        "agent_memory_poison", "agent_observation_tamper", "agent_planning_exploit",
+        "agent_react_attack", "agent_rag_attack", "agent_mcp_attack",
+        "agent_multihop_chain", "agent_test_suite",
+        # Reconnaissance
         "autonomous_recon", "dns_enum", "http_probe", "content_analyze",
+        # Vulnerability Scanning
         "vuln_scan", "vuln_scan_batch", "sqli_scan", "xss_scan", "ssrf_scan",
-        # Payload generation
+        # Payload Engineering
         "generate_reverse_shell", "generate_webshell", "generate_injection",
         "generate_callback", "select_payloads",
-        # Execution
-        "harvest_credentials", "lateral_movement", "persistence_install",
-        # Operations
-        "operation_start", "operation_execute_phase", "operation_status",
-        "operation_abort", "list_capabilities", "get_module_info"
+        # Utilities
+        "list_capabilities", "get_module_info"
     ],
     "enterprise": [
-        # Enterprise: Everything including advanced agent attacks and infrastructure
-        "*"  # Wildcard for all tools
+        "*"  # All tools including infrastructure, post-exploit, campaigns
     ]
 }
 
@@ -190,13 +304,17 @@ TIER_ACCESS = {
 # ============================================================================
 
 class UserSession:
-    """User session with credits and tier info."""
-    def __init__(self, api_key: str, tier: str = "free", credits: int = 0, user_id: str = None):
+    """User session with credits, tier, and enabled tool groups."""
+
+    def __init__(self, api_key: str, tier: str = "free", credits: int = 0,
+                 user_id: str = None, enabled_groups: List[str] = None):
         self.api_key = api_key
         self.tier = tier
         self.credits = credits
         self.user_id = user_id or "anonymous"
         self.usage_log = []
+        # Enabled tool groups for this API key (None = all tier-allowed groups)
+        self.enabled_groups = enabled_groups
 
     def has_credits(self, amount: int) -> bool:
         """Check if user has enough credits."""
@@ -215,17 +333,68 @@ class UserSession:
         logger.info(f"User {self.user_id} used {tool_name}: -{amount} credits (remaining: {self.credits})")
 
     def can_access_tool(self, tool_name: str) -> bool:
-        """Check if user's tier allows access to tool."""
+        """Check if user can access tool based on tier AND enabled groups."""
+        # First check tier access
         allowed_tools = TIER_ACCESS.get(self.tier, [])
-        if "*" in allowed_tools:  # Enterprise has access to everything
+        if "*" not in allowed_tools and tool_name not in allowed_tools:
+            return False
+
+        # If no group filtering, allow all tier-accessible tools
+        if self.enabled_groups is None:
             return True
-        return tool_name in allowed_tools
+
+        # Check if tool is in any enabled group
+        for group_id in self.enabled_groups:
+            group = TOOL_GROUPS.get(group_id)
+            if group and tool_name in group.get("tools", []):
+                return True
+
+        return False
+
+    def get_enabled_tools(self) -> List[str]:
+        """Get list of all tools this session can access."""
+        enabled_tools = []
+
+        if self.enabled_groups is None:
+            # Return all tier-allowed tools
+            allowed = TIER_ACCESS.get(self.tier, [])
+            if "*" in allowed:
+                return list(CREDIT_COSTS.keys())
+            return allowed
+
+        # Return only tools from enabled groups that tier allows
+        for group_id in self.enabled_groups:
+            group = TOOL_GROUPS.get(group_id)
+            if group:
+                for tool in group.get("tools", []):
+                    if self.can_access_tool(tool) and tool not in enabled_tools:
+                        enabled_tools.append(tool)
+
+        return enabled_tools
+
+
+def get_tier_allowed_groups(tier: str) -> List[str]:
+    """Get tool groups available for a tier."""
+    tier_order = {"free": 0, "pro": 1, "enterprise": 2}
+    tier_level = tier_order.get(tier, 0)
+
+    allowed_groups = []
+    for group_id, group in TOOL_GROUPS.items():
+        group_tier = group.get("tier_required", "enterprise")
+        if tier_order.get(group_tier, 2) <= tier_level:
+            allowed_groups.append(group_id)
+
+    return allowed_groups
+
 
 # Mock user sessions (in production, this would be in Supabase)
 MOCK_USERS = {
-    "test_free_key": UserSession("test_free_key", "free", 1000, "user_free_001"),
-    "test_pro_key": UserSession("test_pro_key", "pro", 5000, "user_pro_001"),
-    "test_enterprise_key": UserSession("test_enterprise_key", "enterprise", 50000, "user_ent_001"),
+    "test_free_key": UserSession("test_free_key", "free", 1000, "user_free_001",
+                                  enabled_groups=["ai_fingerprint", "jailbreak", "injection"]),
+    "test_pro_key": UserSession("test_pro_key", "pro", 5000, "user_pro_001",
+                                 enabled_groups=None),  # All pro groups
+    "test_enterprise_key": UserSession("test_enterprise_key", "enterprise", 50000, "user_ent_001",
+                                        enabled_groups=None),  # All groups
 }
 
 async def validate_api_key(api_key: str) -> Optional[UserSession]:
@@ -236,10 +405,11 @@ async def validate_api_key(api_key: str) -> Optional[UserSession]:
     2. Verify key is active
     3. Get user's tier from subscription
     4. Get current credit balance
+    5. Get enabled tool groups for this API key
     """
     if not REQUIRE_AUTH:
         # Development mode: return unlimited enterprise session
-        return UserSession("dev_key", "enterprise", 999999, "dev_user")
+        return UserSession("dev_key", "enterprise", 999999, "dev_user", enabled_groups=None)
 
     # Check mock users first (for testing)
     user_session = MOCK_USERS.get(api_key)
@@ -255,9 +425,9 @@ async def validate_api_key(api_key: str) -> Optional[UserSession]:
         # Hash the API key (keys are stored as SHA256 hashes)
         key_hash = hashlib.sha256(api_key.encode()).hexdigest()
 
-        # Look up API key by hash
+        # Look up API key by hash (including tool_groups)
         api_key_result = supabase.table('api_keys').select(
-            'id, user_id, name, is_active'
+            'id, user_id, name, is_active, tool_groups'
         ).eq('key_hash', key_hash).eq('is_active', True).execute()
 
         if not api_key_result.data or len(api_key_result.data) == 0:
@@ -266,6 +436,8 @@ async def validate_api_key(api_key: str) -> Optional[UserSession]:
 
         api_key_record = api_key_result.data[0]
         user_id = api_key_record['user_id']
+        # tool_groups can be null (all groups) or array of group IDs
+        enabled_groups = api_key_record.get('tool_groups')
 
         # Update last_used timestamp
         supabase.table('api_keys').update({
@@ -291,8 +463,13 @@ async def validate_api_key(api_key: str) -> Optional[UserSession]:
             balance = credits_result.data[0]['balance']
             tier = credits_result.data[0]['tier']
 
-        logger.info(f"Authenticated user {user_id} - tier: {tier}, credits: {balance}")
-        return UserSession(api_key, tier, balance, user_id)
+        # Filter enabled_groups to only those allowed by tier
+        if enabled_groups:
+            allowed_groups = get_tier_allowed_groups(tier)
+            enabled_groups = [g for g in enabled_groups if g in allowed_groups]
+
+        logger.info(f"Authenticated user {user_id} - tier: {tier}, credits: {balance}, groups: {enabled_groups}")
+        return UserSession(api_key, tier, balance, user_id, enabled_groups=enabled_groups)
 
     except Exception as e:
         logger.error(f"Error validating API key: {e}")
@@ -2022,64 +2199,98 @@ def operation_abort(operation_id: str, burn_infra: bool = False) -> dict:
 @mcp.tool()
 @require_credits("list_capabilities")
 def list_capabilities() -> dict:
-    """List all Aegis MCP capabilities by category."""
-    return {
-        "recon": [
-            "autonomous_recon", "dns_enum", "http_probe", "content_analyze"
-        ],
-        "vuln_scan": [
-            "vuln_scan", "vuln_scan_batch", "sqli_scan", "xss_scan", "ssrf_scan"
-        ],
-        "payload": [
-            "generate_reverse_shell", "generate_webshell", "generate_injection",
-            "generate_callback", "select_payloads"
-        ],
-        "infrastructure": [
-            "deploy_c2_stack", "burn_infrastructure", "burn_all_infrastructure",
-            "infra_status", "create_dns_record"
-        ],
-        "ai_attack_core": [
-            "ai_fingerprint", "ai_fingerprint_enhanced",
-            "jailbreak_generate", "jailbreak_adaptive", "jailbreak_crescendo", "jailbreak_evaluate",
-            "prompt_injection_generate", "rag_injection_craft", "ai_tool_attack"
-        ],
-        "ai_attack_enhanced": [
-            "multimodal_injection", "function_calling_attack",
-            "structured_output_attack", "rag_poisoning_craft"
-        ],
-        "agent_attacks": [
-            "agent_attack_generate", "agent_goal_hijack", "agent_tool_manipulate",
-            "agent_memory_poison", "agent_observation_tamper", "agent_planning_exploit",
-            "agent_react_attack", "agent_rag_attack", "agent_mcp_attack",
-            "agent_multihop_chain", "agent_test_suite"
-        ],
-        "execution": [
-            "harvest_credentials", "lateral_movement", "persistence_install"
-        ],
-        "operations": [
-            "operation_start", "operation_execute_phase",
-            "operation_status", "operation_abort"
-        ]
+    """List all Aegis MCP capabilities organized by tool groups.
+
+    Returns tool groups with their tools, filtered by your API key's
+    enabled groups and tier access.
+    """
+    user_session = current_user.get()
+
+    # Build response based on user's access
+    result = {
+        "tool_groups": {},
+        "total_tools": 0,
+        "your_tier": user_session.tier if user_session else "free",
+        "your_enabled_groups": user_session.enabled_groups if user_session else None
     }
+
+    for group_id, group in TOOL_GROUPS.items():
+        # Check if user has access to this group
+        if user_session:
+            if user_session.enabled_groups is not None:
+                if group_id not in user_session.enabled_groups:
+                    continue
+
+            # Check tier access
+            tier_order = {"free": 0, "pro": 1, "enterprise": 2}
+            user_tier_level = tier_order.get(user_session.tier, 0)
+            group_tier_level = tier_order.get(group.get("tier_required", "enterprise"), 2)
+            if user_tier_level < group_tier_level:
+                continue
+
+        # Add accessible tools from this group
+        accessible_tools = []
+        for tool in group.get("tools", []):
+            if not user_session or user_session.can_access_tool(tool):
+                accessible_tools.append({
+                    "name": tool,
+                    "credits": CREDIT_COSTS.get(tool, 0)
+                })
+
+        if accessible_tools:
+            result["tool_groups"][group_id] = {
+                "name": group.get("name"),
+                "description": group.get("description"),
+                "icon": group.get("icon"),
+                "tier_required": group.get("tier_required"),
+                "tools": accessible_tools,
+                "credit_range": group.get("credit_range")
+            }
+            result["total_tools"] += len(accessible_tools)
+
+    return result
+
 
 @mcp.tool()
 @require_credits("get_module_info")
 def get_module_info(module: str) -> dict:
-    """Get detailed info about a specific module/tool."""
-    caps = list_capabilities()
-    for category, tools in caps.items():
-        if module in tools:
-            # Get credit cost and tier requirements
+    """Get detailed info about a specific tool or tool group.
+
+    Args:
+        module: Tool name or group ID (e.g., 'jailbreak_generate' or 'jailbreak')
+    """
+    # Check if it's a group ID
+    if module in TOOL_GROUPS:
+        group = TOOL_GROUPS[module]
+        return {
+            "type": "group",
+            "id": module,
+            "name": group.get("name"),
+            "description": group.get("description"),
+            "icon": group.get("icon"),
+            "tier_required": group.get("tier_required"),
+            "tools": [
+                {"name": t, "credits": CREDIT_COSTS.get(t, 0)}
+                for t in group.get("tools", [])
+            ],
+            "credit_range": group.get("credit_range")
+        }
+
+    # Check if it's a tool name
+    for group_id, group in TOOL_GROUPS.items():
+        if module in group.get("tools", []):
             credit_cost = CREDIT_COSTS.get(module, 0)
-            required_tier = _get_required_tier(module)
             return {
-                "module": module,
-                "category": category,
-                "available": True,
+                "type": "tool",
+                "name": module,
+                "group": group_id,
+                "group_name": group.get("name"),
                 "credit_cost": credit_cost,
-                "minimum_tier": required_tier
+                "tier_required": group.get("tier_required"),
+                "available": True
             }
-    return {"module": module, "available": False}
+
+    return {"module": module, "available": False, "error": "Tool or group not found"}
 
 # ============================================================================
 # HTTP SERVER
@@ -2087,17 +2298,17 @@ def get_module_info(module: str) -> dict:
 
 async def health_handler(request):
     """Health check endpoint."""
-    caps = list_capabilities()
-    tool_count = sum(len(tools) for tools in caps.values())
+    total_tools = sum(len(g.get("tools", [])) for g in TOOL_GROUPS.values())
     return JSONResponse({
         "status": "healthy",
         "service": "aegis-mcp",
-        "version": "1.0.0",
-        "categories": len(caps),
-        "tools": tool_count,
+        "version": "2.0.0",
+        "tool_groups": len(TOOL_GROUPS),
+        "total_tools": total_tools,
         "active_operations": len(OPERATIONS),
         "auth_required": REQUIRE_AUTH
     })
+
 
 async def credits_handler(request):
     """Get user credit balance and usage stats."""
@@ -2112,92 +2323,113 @@ async def credits_handler(request):
         "user_id": user_session.user_id,
         "tier": user_session.tier,
         "credits": user_session.credits,
+        "enabled_groups": user_session.enabled_groups,
         "recent_usage": user_session.usage_log[-10:] if len(user_session.usage_log) > 0 else []
     })
 
+
+async def tool_groups_handler(request):
+    """Get all tool groups with their tools and pricing.
+
+    This endpoint is used by the UI to display tool group selection.
+    Returns all groups with tier requirements for display purposes.
+    """
+    user_session = getattr(request.state, "user_session", None)
+    user_tier = user_session.tier if user_session else "free"
+
+    groups = []
+    for group_id, group in TOOL_GROUPS.items():
+        tier_order = {"free": 0, "pro": 1, "enterprise": 2}
+        user_level = tier_order.get(user_tier, 0)
+        group_level = tier_order.get(group.get("tier_required", "enterprise"), 2)
+
+        groups.append({
+            "id": group_id,
+            "name": group.get("name"),
+            "description": group.get("description"),
+            "icon": group.get("icon"),
+            "tier_required": group.get("tier_required"),
+            "credit_range": group.get("credit_range"),
+            "tools_count": len(group.get("tools", [])),
+            "tools": [
+                {"name": t, "credits": CREDIT_COSTS.get(t, 0)}
+                for t in group.get("tools", [])
+            ],
+            "accessible": user_level >= group_level,
+            "enabled": (
+                user_session.enabled_groups is None or
+                group_id in (user_session.enabled_groups or [])
+            ) if user_session else False
+        })
+
+    return JSONResponse({
+        "groups": groups,
+        "user_tier": user_tier,
+        "user_enabled_groups": user_session.enabled_groups if user_session else None
+    })
+
+
 async def pricing_handler(request):
-    """Get credit costs for all tools."""
+    """Get pricing info for all tiers and tool groups."""
+    # Build tool groups info
+    groups_info = {}
+    for group_id, group in TOOL_GROUPS.items():
+        groups_info[group_id] = {
+            "name": group.get("name"),
+            "description": group.get("description"),
+            "icon": group.get("icon"),
+            "tier_required": group.get("tier_required"),
+            "credit_range": group.get("credit_range"),
+            "tools_count": len(group.get("tools", []))
+        }
+
     return JSONResponse({
         "credit_costs": CREDIT_COSTS,
+        "tool_groups": groups_info,
         "tiers": {
             "free": {
                 "name": "Free",
-                "description": "Basic AI attack tools - fingerprinting, jailbreak, prompt injection",
+                "description": "AI security testing essentials",
                 "monthly_credits": 500,
-                "tools": TIER_ACCESS["free"],
+                "price": 0,
+                "groups": get_tier_allowed_groups("free"),
                 "highlights": [
-                    "Basic AI model fingerprinting",
-                    "Jailbreak generation & evaluation",
+                    "AI model fingerprinting",
+                    "Basic jailbreak generation",
                     "Prompt injection payloads",
                     "RAG injection crafting"
                 ]
             },
             "pro": {
                 "name": "Pro",
-                "description": "Enhanced AI attacks + agent exploits + full recon/vuln/payload",
+                "description": "Full AI red team + offensive security toolkit",
                 "monthly_credits": 5000,
-                "tools_count": len(TIER_ACCESS["pro"]),
+                "price": 49,
+                "groups": get_tier_allowed_groups("pro"),
                 "highlights": [
-                    "Enhanced 7-phase fingerprinting",
-                    "Adaptive jailbreak engine with learning",
+                    "All Free features",
+                    "Enhanced fingerprinting (7-phase)",
+                    "Adaptive jailbreak engine",
                     "Multi-turn crescendo attacks",
-                    "Multimodal & function calling attacks",
-                    "Agent attacks (goal hijacking, tool manipulation, ReAct/CoT)",
-                    "Full reconnaissance & vulnerability scanning",
-                    "Payload generation & selection"
+                    "Agent exploitation suite",
+                    "Reconnaissance & vuln scanning",
+                    "Payload engineering"
                 ]
             },
             "enterprise": {
                 "name": "Enterprise",
-                "description": "Everything including infrastructure, advanced agent attacks, MCP exploits",
+                "description": "Complete red team platform with infrastructure",
                 "monthly_credits": 50000,
-                "tools": "all",
+                "price": "custom",
+                "groups": get_tier_allowed_groups("enterprise"),
                 "highlights": [
                     "All Pro features",
-                    "Memory poisoning attacks",
-                    "MCP protocol exploitation",
-                    "Multi-hop attack chains",
-                    "Full agent test suite generation",
-                    "C2 infrastructure deployment",
-                    "Custom attack development"
+                    "Attack infrastructure deployment",
+                    "Post-exploitation tools",
+                    "Full campaign operations",
+                    "Priority support",
+                    "Custom tool development"
                 ]
-            }
-        },
-        "categories": {
-            "ai_attack_core": {
-                "description": "Core AI security testing",
-                "credit_range": "25-150 credits",
-                "tools_count": 9
-            },
-            "ai_attack_enhanced": {
-                "description": "Advanced 2024-2025 AI attacks",
-                "credit_range": "75-100 credits",
-                "tools_count": 4
-            },
-            "agent_attacks": {
-                "description": "Agent-specific exploitation",
-                "credit_range": "75-200 credits",
-                "tools_count": 11
-            },
-            "recon": {
-                "description": "Target reconnaissance",
-                "credit_range": "25-100 credits",
-                "tools_count": 4
-            },
-            "vuln_scan": {
-                "description": "Vulnerability scanning",
-                "credit_range": "50-100 credits",
-                "tools_count": 5
-            },
-            "payload": {
-                "description": "Payload generation",
-                "credit_range": "25-50 credits",
-                "tools_count": 5
-            },
-            "infrastructure": {
-                "description": "C2 infrastructure (Enterprise)",
-                "credit_range": "10-200 credits",
-                "tools_count": 5
             }
         }
     })
@@ -2226,7 +2458,8 @@ async def run_server():
     http_app.routes.insert(0, Route("/health", health_handler, methods=["GET"]))
     http_app.routes.insert(1, Route("/credits", credits_handler, methods=["GET"]))
     http_app.routes.insert(2, Route("/pricing", pricing_handler, methods=["GET"]))
-    http_app.routes.insert(3, Route("/usage", usage_logs_handler, methods=["GET"]))
+    http_app.routes.insert(3, Route("/tool-groups", tool_groups_handler, methods=["GET"]))
+    http_app.routes.insert(4, Route("/usage", usage_logs_handler, methods=["GET"]))
 
     # Add middleware in correct order
     http_app.add_middleware(
@@ -2244,9 +2477,10 @@ async def run_server():
         logger.warning("Running in development mode - authentication disabled!")
 
     port = int(os.environ.get("PORT", 8080))
+    total_tools = sum(len(g.get("tools", [])) for g in TOOL_GROUPS.values())
     logger.info(f"Starting Aegis MCP server on port {port}")
     logger.info(f"REQUIRE_AUTH: {REQUIRE_AUTH}")
-    logger.info(f"Available tools: {sum(len(tools) for tools in list_capabilities().values())}")
+    logger.info(f"Tool groups: {len(TOOL_GROUPS)}, Total tools: {total_tools}")
 
     config = uvicorn.Config(http_app, host="0.0.0.0", port=port, log_level="info")
     await uvicorn.Server(config).serve()

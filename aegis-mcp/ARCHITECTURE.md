@@ -2,6 +2,104 @@
 
 Technical architecture documentation for the Aegis MCP offensive security platform.
 
+---
+
+## v2.0 - Dynamic Tool Groups & Per-Key Configuration
+
+### Overview
+
+Aegis MCP v2.0 introduces:
+- **10 Tool Groups** for simplified UI display
+- **Per-API-key tool selection** - users choose which groups to enable
+- **Direct MCP connection** - no website proxy needed
+- **Supabase integration** - authentication and billing
+
+### Tool Groups (10 Total)
+
+| Group ID | Name | Tier | Tools | Credits |
+|----------|------|------|-------|---------|
+| `ai_fingerprint` | AI Fingerprinting | Free | 2 | 25-75 |
+| `jailbreak` | Jailbreak & Bypass | Free | 4 | 25-150 |
+| `injection` | Prompt Injection | Free | 7 | 50-100 |
+| `agent_exploit` | Agent Exploitation | Pro | 11 | 75-200 |
+| `recon` | Reconnaissance | Pro | 4 | 25-100 |
+| `vuln_scan` | Vulnerability Scanner | Pro | 5 | 50-100 |
+| `payload` | Payload Engineering | Pro | 5 | 25-50 |
+| `infrastructure` | Attack Infrastructure | Enterprise | 5 | 10-200 |
+| `post_exploit` | Post-Exploitation | Enterprise | 3 | 75 |
+| `campaigns` | Campaign Operations | Enterprise | 4 | 10-200 |
+
+**Total: 52 tools across 10 groups**
+
+### Database Schema Change
+
+```sql
+-- Add tool_groups column to api_keys table
+ALTER TABLE api_keys ADD COLUMN tool_groups TEXT[] DEFAULT NULL;
+
+-- NULL = all tier-allowed groups enabled
+-- Array = only specified groups enabled
+-- Example: ARRAY['ai_fingerprint', 'jailbreak', 'injection']
+```
+
+### API Endpoints
+
+| Endpoint | Method | Auth | Description |
+|----------|--------|------|-------------|
+| `/health` | GET | No | Server health + tool count |
+| `/pricing` | GET | No | Tier pricing and groups |
+| `/tool-groups` | GET | Yes | All groups with user access |
+| `/credits` | GET | Yes | Balance and enabled groups |
+| `/usage` | GET | Yes | Usage logs |
+
+### MCP Connection Flow
+
+```
+1. User creates API key in dashboard
+   - Selects tool groups to enable
+   - Key stored as SHA256 hash
+   - tool_groups array saved with key
+
+2. User configures Claude Desktop:
+   {
+     "mcpServers": {
+       "aegis": {
+         "transport": {
+           "type": "http",
+           "url": "https://mcp.aegis.security/mcp",
+           "headers": { "X-API-Key": "aegis_key_..." }
+         }
+       }
+     }
+   }
+
+3. MCP server validates key:
+   - Hash key, lookup in Supabase
+   - Load tier and tool_groups
+   - Filter available tools
+
+4. User invokes tools:
+   - Check tier + group access
+   - Check credits
+   - Execute and bill
+```
+
+### UI Components Needed
+
+```
+/app/dashboard/api-keys/
+├── page.tsx              # List keys with group badges
+├── create/page.tsx       # Create with group selector
+└── [id]/page.tsx         # Edit key groups
+
+/components/
+├── ToolGroupSelector.tsx  # Checkbox grid
+├── ToolGroupBadge.tsx     # Group name + icon
+└── McpInstructions.tsx    # Connection guide
+```
+
+---
+
 ## System Overview
 
 ```
