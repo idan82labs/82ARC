@@ -11,6 +11,9 @@ requests>=2.31.0
 aiohttp>=3.9.0
 httpx>=0.25.0
 
+# Supabase (Database & Auth)
+supabase>=2.0.0
+
 # DNS Operations
 dnspython>=2.4.0
 

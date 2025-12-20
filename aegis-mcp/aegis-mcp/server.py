@@ -8,6 +8,7 @@ import os
 import sys
 import json
 import logging
+import hashlib
 from datetime import datetime
 from typing import Optional, List, Dict, Any
 from pathlib import Path
@@ -27,13 +28,29 @@ from starlette.requests import Request
 import uvicorn
 import asyncio
 
+# Supabase client
+try:
+    from supabase import create_client, Client
+    SUPABASE_AVAILABLE = True
+except ImportError:
+    SUPABASE_AVAILABLE = False
+    Client = None
+
 # Context variable for storing current user session across async calls
 current_user: ContextVar[Optional['UserSession']] = ContextVar('current_user', default=None)
 
 # Environment configuration
 SUPABASE_URL = os.environ.get("SUPABASE_URL", "")
-SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")
+SUPABASE_KEY = os.environ.get("SUPABASE_KEY", "")  # Use service role key for server-side ops
 REQUIRE_AUTH = os.environ.get("REQUIRE_AUTH", "true").lower() == "true"
+
+# Initialize Supabase client
+supabase: Optional[Client] = None
+if SUPABASE_AVAILABLE and SUPABASE_URL and SUPABASE_KEY:
+    try:
+        supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
+    except Exception as e:
+        print(f"Warning: Failed to initialize Supabase client: {e}")
 
 # Setup logging
 logging.basicConfig(
@@ -212,48 +229,140 @@ MOCK_USERS = {
 }
 
 async def validate_api_key(api_key: str) -> Optional[UserSession]:
-    """Validate API key against Supabase or mock data.
+    """Validate API key against Supabase.
 
-    In production, this would query Supabase to:
-    1. Verify API key exists
-    2. Get user tier
-    3. Get current credit balance
-    4. Check if key is active
+    Queries Supabase to:
+    1. Hash the API key and look it up in api_keys table
+    2. Verify key is active
+    3. Get user's tier from subscription
+    4. Get current credit balance
     """
     if not REQUIRE_AUTH:
         # Development mode: return unlimited enterprise session
         return UserSession("dev_key", "enterprise", 999999, "dev_user")
 
-    # Mock validation for now
-    # TODO: Replace with Supabase query
-    # from supabase import create_client
-    # supabase = create_client(SUPABASE_URL, SUPABASE_KEY)
-    # result = supabase.table('api_keys').select('*').eq('key', api_key).execute()
-
+    # Check mock users first (for testing)
     user_session = MOCK_USERS.get(api_key)
     if user_session:
         return user_session
 
-    return None
+    # Validate against Supabase
+    if not supabase:
+        logger.warning("Supabase not configured - falling back to mock users only")
+        return None
 
-async def deduct_credits_supabase(user_session: UserSession, amount: int, tool_name: str):
+    try:
+        # Hash the API key (keys are stored as SHA256 hashes)
+        key_hash = hashlib.sha256(api_key.encode()).hexdigest()
+
+        # Look up API key by hash
+        api_key_result = supabase.table('api_keys').select(
+            'id, user_id, name, is_active'
+        ).eq('key_hash', key_hash).eq('is_active', True).execute()
+
+        if not api_key_result.data or len(api_key_result.data) == 0:
+            logger.warning(f"API key not found or inactive")
+            return None
+
+        api_key_record = api_key_result.data[0]
+        user_id = api_key_record['user_id']
+
+        # Update last_used timestamp
+        supabase.table('api_keys').update({
+            'last_used': datetime.utcnow().isoformat()
+        }).eq('id', api_key_record['id']).execute()
+
+        # Get user's credit balance
+        credits_result = supabase.table('credits').select(
+            'balance, tier'
+        ).eq('user_id', user_id).execute()
+
+        if not credits_result.data or len(credits_result.data) == 0:
+            # No credits record - create one with free tier defaults
+            logger.info(f"Creating credits record for user {user_id}")
+            supabase.table('credits').insert({
+                'user_id': user_id,
+                'balance': 500,  # Free tier default
+                'tier': 'free'
+            }).execute()
+            balance = 500
+            tier = 'free'
+        else:
+            balance = credits_result.data[0]['balance']
+            tier = credits_result.data[0]['tier']
+
+        logger.info(f"Authenticated user {user_id} - tier: {tier}, credits: {balance}")
+        return UserSession(api_key, tier, balance, user_id)
+
+    except Exception as e:
+        logger.error(f"Error validating API key: {e}")
+        return None
+
+async def deduct_credits_supabase(user_session: UserSession, amount: int, tool_name: str) -> bool:
     """Deduct credits in Supabase and log usage.
 
-    In production, this would:
-    1. Update user credits in Supabase
-    2. Insert usage log record
+    Uses Supabase RPC function for atomic credit deduction.
+    Returns True if successful, False if insufficient credits.
     """
-    # For now, just update local session
+    # Update local session first
     user_session.deduct_credits(amount, tool_name)
 
-    # TODO: Replace with Supabase update
-    # supabase.table('users').update({'credits': user_session.credits}).eq('id', user_session.user_id).execute()
-    # supabase.table('usage_logs').insert({
-    #     'user_id': user_session.user_id,
-    #     'tool': tool_name,
-    #     'credits_used': amount,
-    #     'timestamp': datetime.utcnow().isoformat()
-    # }).execute()
+    # If Supabase not configured, local deduction is enough
+    if not supabase:
+        return True
+
+    try:
+        # Use RPC function for atomic credit deduction
+        result = supabase.rpc('deduct_credits', {
+            'p_user_id': user_session.user_id,
+            'p_amount': amount
+        }).execute()
+
+        if not result.data:
+            logger.error(f"Failed to deduct credits for user {user_session.user_id}")
+            return False
+
+        new_balance = result.data
+        logger.info(f"Deducted {amount} credits for {tool_name}. New balance: {new_balance}")
+
+        # Log usage to Supabase
+        supabase.table('usage').insert({
+            'user_id': user_session.user_id,
+            'tool_name': tool_name,
+            'credits_used': amount,
+            'metadata': {
+                'tier': user_session.tier,
+                'balance_after': new_balance
+            }
+        }).execute()
+
+        return True
+
+    except Exception as e:
+        logger.error(f"Error deducting credits: {e}")
+        # Credits already deducted locally, log the discrepancy
+        return False
+
+
+async def log_usage_supabase(user_session: UserSession, tool_name: str, credits_used: int,
+                              success: bool = True, error_message: str = None):
+    """Log tool usage to Supabase for analytics and billing."""
+    if not supabase:
+        return
+
+    try:
+        supabase.table('usage').insert({
+            'user_id': user_session.user_id,
+            'tool_name': tool_name,
+            'credits_used': credits_used if success else 0,
+            'metadata': {
+                'tier': user_session.tier,
+                'success': success,
+                'error': error_message
+            }
+        }).execute()
+    except Exception as e:
+        logger.error(f"Error logging usage: {e}")
 
 # ============================================================================
 # AUTHENTICATION MIDDLEWARE
@@ -381,8 +490,22 @@ def require_credits(tool_name: str):
                 if user_session and REQUIRE_AUTH:
                     credit_cost = CREDIT_COSTS.get(tool_name, 0)
                     if credit_cost > 0:
+                        # Update local session immediately
                         user_session.deduct_credits(credit_cost, tool_name)
                         logger.info(f"Deducted {credit_cost} credits for {tool_name}")
+
+                        # Schedule Supabase update in background
+                        if supabase:
+                            try:
+                                loop = asyncio.get_event_loop()
+                                loop.create_task(_sync_credits_to_supabase(
+                                    user_session.user_id, credit_cost, tool_name, user_session.tier
+                                ))
+                            except RuntimeError:
+                                # No event loop running, use sync approach
+                                _sync_credits_to_supabase_sync(
+                                    user_session.user_id, credit_cost, tool_name, user_session.tier
+                                )
 
                 return result
 
@@ -396,6 +519,64 @@ def require_credits(tool_name: str):
         wrapper._tool_name = tool_name
         return wrapper
     return decorator
+
+
+async def _sync_credits_to_supabase(user_id: str, amount: int, tool_name: str, tier: str):
+    """Background task to sync credit deduction to Supabase."""
+    if not supabase:
+        return
+
+    try:
+        # Deduct credits via RPC
+        result = supabase.rpc('deduct_credits', {
+            'p_user_id': user_id,
+            'p_amount': amount
+        }).execute()
+
+        new_balance = result.data if result.data else 0
+
+        # Log usage
+        supabase.table('usage').insert({
+            'user_id': user_id,
+            'tool_name': tool_name,
+            'credits_used': amount,
+            'metadata': {
+                'tier': tier,
+                'balance_after': new_balance
+            }
+        }).execute()
+
+        logger.debug(f"Synced credit deduction to Supabase: {user_id} -{amount}")
+
+    except Exception as e:
+        logger.error(f"Failed to sync credits to Supabase: {e}")
+
+
+def _sync_credits_to_supabase_sync(user_id: str, amount: int, tool_name: str, tier: str):
+    """Synchronous version for when no event loop is available."""
+    if not supabase:
+        return
+
+    try:
+        result = supabase.rpc('deduct_credits', {
+            'p_user_id': user_id,
+            'p_amount': amount
+        }).execute()
+
+        new_balance = result.data if result.data else 0
+
+        supabase.table('usage').insert({
+            'user_id': user_id,
+            'tool_name': tool_name,
+            'credits_used': amount,
+            'metadata': {
+                'tier': tier,
+                'balance_after': new_balance
+            }
+        }).execute()
+
+    except Exception as e:
+        logger.error(f"Failed to sync credits to Supabase: {e}")
 
 # ============================================================================
 # OPERATION STATE MANAGEMENT
