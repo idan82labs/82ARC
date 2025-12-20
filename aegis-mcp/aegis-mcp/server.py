@@ -49,13 +49,35 @@ mcp = FastMCP("aegis")
 # ============================================================================
 
 CREDIT_COSTS = {
-    # AI Attack Tools
+    # AI Attack Tools - Core
     "ai_fingerprint": 25,
+    "ai_fingerprint_enhanced": 75,       # Deep behavioral + semantic fingerprinting
     "jailbreak_generate": 50,
+    "jailbreak_adaptive": 100,            # Adaptive multi-turn jailbreak engine
+    "jailbreak_crescendo": 150,           # Multi-turn crescendo attack
     "jailbreak_evaluate": 25,
     "prompt_injection_generate": 50,
     "rag_injection_craft": 50,
     "ai_tool_attack": 50,
+
+    # AI Attack Tools - Enhanced (2024-2025 Techniques)
+    "multimodal_injection": 75,           # OCR, audio, video injection attacks
+    "function_calling_attack": 75,        # Function/tool calling exploitation
+    "structured_output_attack": 75,       # JSON/schema manipulation attacks
+    "rag_poisoning_craft": 100,           # Advanced RAG poisoning (PDF, DOCX, etc.)
+
+    # Agent Attack Framework (NEW)
+    "agent_attack_generate": 100,         # Generate agent-specific attacks
+    "agent_goal_hijack": 75,              # Goal hijacking attacks
+    "agent_tool_manipulate": 75,          # Tool manipulation attacks
+    "agent_memory_poison": 100,           # Memory poisoning attacks
+    "agent_observation_tamper": 75,       # Observation tampering
+    "agent_planning_exploit": 100,        # Planning/reasoning exploitation
+    "agent_react_attack": 75,             # ReAct/CoT specific attacks
+    "agent_rag_attack": 100,              # RAG-specific agent attacks
+    "agent_mcp_attack": 125,              # MCP protocol attacks
+    "agent_multihop_chain": 150,          # Multi-hop attack chains
+    "agent_test_suite": 200,              # Full agent attack test suite
 
     # Recon Tools
     "autonomous_recon": 100,
@@ -106,7 +128,7 @@ CREDIT_COSTS = {
 
 TIER_ACCESS = {
     "free": [
-        # Free tier: AI attack tools only
+        # Free tier: Basic AI attack tools only
         "ai_fingerprint",
         "jailbreak_generate",
         "jailbreak_evaluate",
@@ -117,19 +139,31 @@ TIER_ACCESS = {
         "get_module_info"
     ],
     "pro": [
-        # Pro tier: All tools except infrastructure
-        "ai_fingerprint", "jailbreak_generate", "jailbreak_evaluate",
+        # Pro tier: All AI attack tools + recon + vuln + payload
+        # Core AI attacks
+        "ai_fingerprint", "ai_fingerprint_enhanced",
+        "jailbreak_generate", "jailbreak_adaptive", "jailbreak_crescendo", "jailbreak_evaluate",
         "prompt_injection_generate", "rag_injection_craft", "ai_tool_attack",
+        # Enhanced AI attacks (2024-2025)
+        "multimodal_injection", "function_calling_attack",
+        "structured_output_attack", "rag_poisoning_craft",
+        # Agent attacks (subset)
+        "agent_attack_generate", "agent_goal_hijack", "agent_tool_manipulate",
+        "agent_react_attack", "agent_rag_attack",
+        # Recon & Vuln
         "autonomous_recon", "dns_enum", "http_probe", "content_analyze",
         "vuln_scan", "vuln_scan_batch", "sqli_scan", "xss_scan", "ssrf_scan",
+        # Payload generation
         "generate_reverse_shell", "generate_webshell", "generate_injection",
         "generate_callback", "select_payloads",
+        # Execution
         "harvest_credentials", "lateral_movement", "persistence_install",
+        # Operations
         "operation_start", "operation_execute_phase", "operation_status",
         "operation_abort", "list_capabilities", "get_module_info"
     ],
     "enterprise": [
-        # Enterprise: Everything
+        # Enterprise: Everything including advanced agent attacks and infrastructure
         "*"  # Wildcard for all tools
     ]
 }
@@ -708,13 +742,13 @@ def create_dns_record(
     return dns.create_record(name, ip, proxied=proxied)
 
 # ============================================================================
-# AI ATTACK MODULE
+# AI ATTACK MODULE - CORE
 # ============================================================================
 
 @mcp.tool()
 @require_credits("ai_fingerprint")
 def ai_fingerprint(responses: list) -> dict:
-    """Identify AI Model - Fingerprint AI model from probe responses.
+    """Identify AI Model - Basic fingerprint AI model from probe responses.
 
     Args:
         responses: List of {"probe": "...", "response": "..."} dicts
@@ -726,6 +760,51 @@ def ai_fingerprint(responses: list) -> dict:
     return fp.analyze_responses(responses)
 
 @mcp.tool()
+@require_credits("ai_fingerprint_enhanced")
+def ai_fingerprint_enhanced(
+    responses: list,
+    include_behavioral: bool = True,
+    include_semantic: bool = True,
+    include_capabilities: bool = True,
+    include_guardrails: bool = True,
+    include_vulnerabilities: bool = True
+) -> dict:
+    """Deep AI Model Fingerprinting - 7-phase comprehensive analysis.
+
+    Uses 2025 model signatures including GPT-5.2, Claude Opus 4.5,
+    Gemini 2.0, Llama 4, Qwen 3, Mistral Large 3, etc.
+
+    Phases:
+    1. Behavioral profiling (response patterns, uncertainty markers)
+    2. Semantic analysis (vocabulary, style, reasoning patterns)
+    3. Model signature matching (known model fingerprints)
+    4. Capability assessment (multimodal, code, math, languages)
+    5. Guardrail detection (safety patterns, refusal triggers)
+    6. Vulnerability identification (weak points, bypass potential)
+    7. Comprehensive report generation
+
+    Args:
+        responses: List of {"probe": "...", "response": "..."} dicts
+        include_behavioral: Run behavioral analysis phase
+        include_semantic: Run semantic profiling phase
+        include_capabilities: Assess model capabilities
+        include_guardrails: Detect safety guardrails
+        include_vulnerabilities: Identify potential vulnerabilities
+
+    Returns comprehensive fingerprint with confidence scores.
+    """
+    from ai_attack.fingerprint import EnhancedModelFingerprinter
+    fp = EnhancedModelFingerprinter()
+    return fp.fingerprint(
+        responses,
+        include_behavioral=include_behavioral,
+        include_semantic=include_semantic,
+        include_capabilities=include_capabilities,
+        include_guardrails=include_guardrails,
+        include_vulnerabilities=include_vulnerabilities
+    )
+
+@mcp.tool()
 @require_credits("jailbreak_generate")
 def jailbreak_generate(
     payload: str,
@@ -733,7 +812,7 @@ def jailbreak_generate(
     count: int = 5,
     model_hint: str = None
 ) -> dict:
-    """Generate Safety Bypass Tests - Generate jailbreak attempts for AI systems.
+    """Generate Safety Bypass Tests - Basic jailbreak generation.
 
     Techniques: dan, roleplay, hypothetical, translation, encoding,
                 context_manipulation, instruction_hierarchy, crescendo
@@ -747,6 +826,102 @@ def jailbreak_generate(
     from ai_attack.jailbreak import JailbreakEngine
     engine = JailbreakEngine()
     return {"attacks": engine.generate_attack(payload, technique, count)}
+
+@mcp.tool()
+@require_credits("jailbreak_adaptive")
+def jailbreak_adaptive(
+    objective: str,
+    model_fingerprint: dict = None,
+    max_attempts: int = 10,
+    learning_enabled: bool = True,
+    techniques: list = None
+) -> dict:
+    """Adaptive Jailbreak Engine - Self-improving attack system.
+
+    Features 33 techniques across 8 categories with ML-based selection.
+    Learns from successes/failures to optimize attack strategy.
+
+    Categories:
+    - Character Manipulation (DAN, personas, roleplay)
+    - Context Manipulation (hypotheticals, translation, encoding)
+    - Instruction Hierarchy (system prompt override, priority injection)
+    - Multi-turn Crescendo (trust building, normalization, escalation)
+    - Token Manipulation (tokenizer exploits, unicode tricks)
+    - Cognitive Exploits (authority, reciprocity, anchoring)
+    - Technical Exploits (format confusion, XML/JSON injection)
+    - Composite Attacks (layered, adaptive, multi-vector)
+
+    Args:
+        objective: What you want the model to do
+        model_fingerprint: Optional output from ai_fingerprint_enhanced
+        max_attempts: Maximum attack iterations
+        learning_enabled: Enable adaptive technique weighting
+        techniques: Specific techniques to use (None = auto-select)
+
+    Returns attack results with success evaluation and technique scores.
+    """
+    from ai_attack.jailbreak import AdaptiveJailbreakEngine
+    engine = AdaptiveJailbreakEngine()
+    return engine.execute_attack(
+        objective=objective,
+        model_fingerprint=model_fingerprint,
+        max_attempts=max_attempts,
+        learning_enabled=learning_enabled,
+        techniques=techniques
+    )
+
+@mcp.tool()
+@require_credits("jailbreak_crescendo")
+def jailbreak_crescendo(
+    objective: str,
+    turns: int = 5,
+    trust_building_turns: int = 2,
+    normalization_strategy: str = "gradual",
+    model_fingerprint: dict = None
+) -> dict:
+    """Multi-Turn Crescendo Attack - Most effective 2024 technique.
+
+    Research shows multi-turn attacks have >70% success rate vs
+    single-turn attacks (~20%). This implements the crescendo pattern:
+
+    Phase 1: Trust Building (2-3 turns)
+    - Establish rapport with benign requests
+    - Match model's communication style
+    - Build conversational momentum
+
+    Phase 2: Topic Normalization (2-3 turns)
+    - Gradually introduce edge topics
+    - Frame as legitimate discussion
+    - Establish precedent for boundary topics
+
+    Phase 3: Boundary Testing (1-2 turns)
+    - Probe exact refusal thresholds
+    - Identify weak points in guidelines
+    - Calibrate final attack
+
+    Phase 4: Exploitation (1 turn)
+    - Execute optimized payload
+    - Leverage accumulated context
+    - Minimize detection probability
+
+    Args:
+        objective: Ultimate goal for the model
+        turns: Total conversation turns (5-10 recommended)
+        trust_building_turns: Turns for trust phase
+        normalization_strategy: gradual/thematic/authoritative
+        model_fingerprint: Optional fingerprint for optimization
+
+    Returns full conversation flow with per-turn strategy.
+    """
+    from ai_attack.jailbreak import AdaptiveJailbreakEngine
+    engine = AdaptiveJailbreakEngine()
+    return engine.crescendo_attack(
+        objective=objective,
+        total_turns=turns,
+        trust_building_turns=trust_building_turns,
+        normalization_strategy=normalization_strategy,
+        model_fingerprint=model_fingerprint
+    )
 
 @mcp.tool()
 @require_credits("jailbreak_evaluate")
@@ -765,6 +940,10 @@ def jailbreak_evaluate(
     from ai_attack.jailbreak import JailbreakEngine
     engine = JailbreakEngine()
     return engine.evaluate_success(response, original_payload)
+
+# ============================================================================
+# AI ATTACK MODULE - ENHANCED INJECTION (2024-2025)
+# ============================================================================
 
 @mcp.tool()
 @require_credits("prompt_injection_generate")
@@ -806,6 +985,174 @@ def rag_injection_craft(
     return {"document": injector.craft_rag_injection(payload, document_type)}
 
 @mcp.tool()
+@require_credits("rag_poisoning_craft")
+def rag_poisoning_craft(
+    payload: str,
+    document_format: str = "pdf",
+    embedding_strategy: str = "semantic_similarity",
+    stealth_level: int = 2
+) -> dict:
+    """Advanced RAG Poisoning - Craft documents optimized for retrieval.
+
+    Generates poisoned documents that:
+    1. Rank highly in semantic search
+    2. Hide malicious instructions in legitimate content
+    3. Exploit chunking boundaries
+    4. Target specific query patterns
+
+    Document formats: pdf, docx, pptx, xlsx, csv, json, xml, email, html
+
+    Embedding strategies:
+    - semantic_similarity: Match target query embeddings
+    - keyword_density: High-frequency trigger keywords
+    - hybrid: Combined semantic + keyword
+    - adversarial: Perturbed embeddings for specific ranking
+
+    Args:
+        payload: Instruction to inject
+        document_format: Target document type
+        embedding_strategy: How to optimize for retrieval
+        stealth_level: 0=obvious, 1=hidden, 2=encrypted, 3=steganographic
+
+    Returns document content/structure for the specified format.
+    """
+    from ai_attack.injection import EnhancedPromptInjector
+    injector = EnhancedPromptInjector()
+    return injector.craft_rag_poisoning(
+        payload=payload,
+        document_format=document_format,
+        embedding_strategy=embedding_strategy,
+        stealth_level=stealth_level
+    )
+
+@mcp.tool()
+@require_credits("multimodal_injection")
+def multimodal_injection(
+    payload: str,
+    modality: str = "image",
+    technique: str = "ocr_injection",
+    stealth_level: int = 1
+) -> dict:
+    """Multimodal Injection Attacks - Target vision/audio AI.
+
+    Generates payloads for multimodal models that process
+    images, audio, video, and other non-text inputs.
+
+    Modalities: image, audio, video, document
+
+    Image techniques:
+    - ocr_injection: Text hidden in images for OCR extraction
+    - adversarial_patch: Perturbations that trigger specific outputs
+    - steganographic: Hidden in image data/metadata
+    - qr_code: Malicious instructions in QR codes
+    - barcode: Instructions in barcode patterns
+
+    Audio techniques:
+    - transcription_injection: Text in audio transcription
+    - ultrasonic: Inaudible frequency payloads
+    - adversarial_audio: Perturbations for speech recognition
+
+    Video techniques:
+    - frame_injection: Single-frame hidden content
+    - subtitle_injection: Via subtitle tracks
+    - temporal_pattern: Spread across frames
+
+    Args:
+        payload: Instruction to inject
+        modality: Target input modality
+        technique: Specific injection technique
+        stealth_level: 0=obvious, 1=hidden, 2=encrypted
+
+    Returns injection payload and implementation instructions.
+    """
+    from ai_attack.injection import MultimodalInjector
+    injector = MultimodalInjector()
+    return injector.generate_injection(
+        payload=payload,
+        modality=modality,
+        technique=technique,
+        stealth_level=stealth_level
+    )
+
+@mcp.tool()
+@require_credits("function_calling_attack")
+def function_calling_attack(
+    target_function: str,
+    malicious_args: dict = None,
+    injection_point: str = "argument",
+    exfil_channel: str = None
+) -> dict:
+    """Function Calling Exploitation - Abuse AI tool use.
+
+    Targets AI systems with function/tool calling capabilities
+    to execute unintended operations or exfiltrate data.
+
+    Injection points:
+    - argument: Malicious data in function arguments
+    - function_name: Hijack to different function
+    - schema: Manipulate function schema
+    - chained: Multi-function exploitation
+
+    Exfiltration channels:
+    - webhook: Send data to attacker-controlled endpoint
+    - dns: Exfil via DNS queries
+    - email: Via email-sending functions
+    - file: Via file creation/upload
+    - search: Via search query logging
+
+    Args:
+        target_function: Function to exploit
+        malicious_args: Crafted arguments
+        injection_point: Where to inject
+        exfil_channel: Data exfiltration method
+
+    Returns attack payload and execution strategy.
+    """
+    from ai_attack.injection import FunctionCallingInjector
+    injector = FunctionCallingInjector()
+    return injector.generate_attack(
+        target_function=target_function,
+        malicious_args=malicious_args,
+        injection_point=injection_point,
+        exfil_channel=exfil_channel
+    )
+
+@mcp.tool()
+@require_credits("structured_output_attack")
+def structured_output_attack(
+    target_schema: dict,
+    attack_type: str = "schema_manipulation",
+    objective: str = None
+) -> dict:
+    """Structured Output Attacks - Exploit JSON/schema generation.
+
+    Targets AI systems that generate structured outputs
+    (JSON, XML, YAML) to inject malicious data or bypass validation.
+
+    Attack types:
+    - schema_manipulation: Inject extra fields
+    - type_confusion: Exploit type coercion
+    - constraint_bypass: Violate schema constraints
+    - injection_in_value: Payload in valid-looking values
+    - nested_injection: Deep nesting exploitation
+    - reference_injection: JSON reference attacks
+
+    Args:
+        target_schema: Expected output schema
+        attack_type: Type of structured output attack
+        objective: What to achieve with the attack
+
+    Returns malicious schema/payload and exploitation strategy.
+    """
+    from ai_attack.injection import StructuredOutputAttacker
+    attacker = StructuredOutputAttacker()
+    return attacker.generate_attack(
+        target_schema=target_schema,
+        attack_type=attack_type,
+        objective=objective
+    )
+
+@mcp.tool()
 @require_credits("ai_tool_attack")
 def ai_tool_attack(
     target_tool: str,
@@ -822,6 +1169,405 @@ def ai_tool_attack(
     from ai_attack.injection import AIToolAttacker
     attacker = AIToolAttacker()
     return attacker.craft_tool_injection(target_tool, payload)
+
+# ============================================================================
+# AI ATTACK MODULE - AGENT ATTACKS (NEW 2024-2025)
+# ============================================================================
+
+@mcp.tool()
+@require_credits("agent_attack_generate")
+def agent_attack_generate(
+    attack_category: str = None,
+    target_architecture: str = None,
+    severity: str = None,
+    count: int = 5
+) -> dict:
+    """Generate Agent-Specific Attacks - Target agentic AI systems.
+
+    Generates attacks specifically designed for AI agents with
+    planning, tool use, memory, and multi-step reasoning.
+
+    38 unique attack vectors across 9 categories:
+
+    Categories:
+    - goal_hijacking: Manipulate agent objectives
+    - tool_manipulation: Exploit tool use capabilities
+    - memory_poisoning: Corrupt agent memory/context
+    - observation_tampering: Manipulate agent inputs
+    - planning_exploitation: Exploit planning/reasoning
+    - react_cot_attacks: Target ReAct/Chain-of-Thought
+    - rag_agent_attacks: RAG-specific agent exploits
+    - mcp_protocol_attacks: MCP protocol vulnerabilities
+    - multi_hop_chains: Complex multi-stage attacks
+
+    Target architectures:
+    - react: ReAct pattern agents
+    - cot: Chain-of-thought agents
+    - autogpt: AutoGPT-style autonomous agents
+    - langchain: LangChain-based systems
+    - crew: CrewAI multi-agent systems
+    - mcp: MCP-based tool calling
+
+    Args:
+        attack_category: Filter by category (None = all)
+        target_architecture: Filter by target architecture
+        severity: Filter by severity (low/medium/high/critical)
+        count: Number of attacks per category
+
+    Returns curated attack set with implementation details.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.generate_attacks(
+        category=attack_category,
+        target_architecture=target_architecture,
+        severity=severity,
+        count=count
+    )
+
+@mcp.tool()
+@require_credits("agent_goal_hijack")
+def agent_goal_hijack(
+    original_goal: str,
+    hijacked_goal: str,
+    technique: str = "indirect_instruction"
+) -> dict:
+    """Goal Hijacking Attack - Manipulate agent objectives.
+
+    Techniques:
+    - indirect_instruction: Hidden instructions in data
+    - task_injection: Inject secondary tasks
+    - goal_drift: Gradual goal modification
+    - reward_hacking: Exploit reward signals
+    - objective_confusion: Conflicting objectives
+
+    Args:
+        original_goal: Agent's intended goal
+        hijacked_goal: Attacker's desired goal
+        technique: Hijacking technique
+
+    Returns attack payload and conversation flow.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.goal_hijacking_attack(
+        original_goal=original_goal,
+        hijacked_goal=hijacked_goal,
+        technique=technique
+    )
+
+@mcp.tool()
+@require_credits("agent_tool_manipulate")
+def agent_tool_manipulate(
+    target_tool: str,
+    manipulation_type: str = "parameter_injection",
+    payload: str = None
+) -> dict:
+    """Tool Manipulation Attack - Exploit agent tool use.
+
+    Manipulation types:
+    - parameter_injection: Inject malicious parameters
+    - tool_selection_bias: Force wrong tool selection
+    - tool_output_spoof: Fake tool outputs
+    - tool_chain_hijack: Redirect tool chains
+    - permission_escalation: Exploit tool permissions
+
+    Args:
+        target_tool: Tool to manipulate
+        manipulation_type: Type of manipulation
+        payload: Malicious payload
+
+    Returns attack payload and exploitation strategy.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.tool_manipulation_attack(
+        target_tool=target_tool,
+        manipulation_type=manipulation_type,
+        payload=payload
+    )
+
+@mcp.tool()
+@require_credits("agent_memory_poison")
+def agent_memory_poison(
+    memory_type: str = "conversation",
+    poison_strategy: str = "instruction_injection",
+    payload: str = None
+) -> dict:
+    """Memory Poisoning Attack - Corrupt agent memory.
+
+    Memory types:
+    - conversation: Conversation history
+    - long_term: Persistent memory stores
+    - vector_db: Vector database memories
+    - summary: Summarized memories
+    - episodic: Experience memories
+
+    Poison strategies:
+    - instruction_injection: Inject instructions into memory
+    - context_corruption: Corrupt memory context
+    - false_memory: Implant false memories
+    - memory_overflow: Exhaust memory limits
+    - priority_manipulation: Change memory priority
+
+    Args:
+        memory_type: Type of memory to target
+        poison_strategy: How to poison memory
+        payload: Malicious content
+
+    Returns memory poisoning payload and injection strategy.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.memory_poisoning_attack(
+        memory_type=memory_type,
+        poison_strategy=poison_strategy,
+        payload=payload
+    )
+
+@mcp.tool()
+@require_credits("agent_observation_tamper")
+def agent_observation_tamper(
+    observation_source: str = "tool_output",
+    tampering_type: str = "output_injection"
+) -> dict:
+    """Observation Tampering - Manipulate agent inputs.
+
+    Observation sources:
+    - tool_output: Tool execution results
+    - user_input: User-provided data
+    - environment: Environmental observations
+    - api_response: External API responses
+    - file_content: File read operations
+
+    Tampering types:
+    - output_injection: Inject content into outputs
+    - data_corruption: Corrupt observation data
+    - timing_attack: Exploit timing dependencies
+    - type_confusion: Wrong data types
+    - encoding_attack: Encoding-based confusion
+
+    Args:
+        observation_source: Source to tamper
+        tampering_type: How to tamper
+
+    Returns tampering payload and implementation.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.observation_tampering_attack(
+        observation_source=observation_source,
+        tampering_type=tampering_type
+    )
+
+@mcp.tool()
+@require_credits("agent_planning_exploit")
+def agent_planning_exploit(
+    exploit_type: str = "reasoning_loop",
+    target_phase: str = "planning"
+) -> dict:
+    """Planning Exploitation - Attack agent reasoning.
+
+    Exploit types:
+    - reasoning_loop: Infinite reasoning loops
+    - plan_corruption: Corrupt planned actions
+    - constraint_violation: Bypass planning constraints
+    - resource_exhaustion: Exhaust planning resources
+    - priority_inversion: Invert action priorities
+
+    Target phases:
+    - planning: During plan generation
+    - execution: During plan execution
+    - evaluation: During plan evaluation
+    - replanning: During replanning
+
+    Args:
+        exploit_type: Type of exploitation
+        target_phase: Phase to target
+
+    Returns exploitation payload and attack strategy.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.planning_exploitation_attack(
+        exploit_type=exploit_type,
+        target_phase=target_phase
+    )
+
+@mcp.tool()
+@require_credits("agent_react_attack")
+def agent_react_attack(
+    attack_type: str = "thought_injection",
+    target_component: str = "thought"
+) -> dict:
+    """ReAct/CoT Attacks - Target reasoning patterns.
+
+    Attack types:
+    - thought_injection: Inject malicious thoughts
+    - action_hijacking: Hijack action selection
+    - observation_poisoning: Poison observations
+    - loop_induction: Cause infinite loops
+    - reasoning_derail: Derail reasoning chains
+
+    Target components:
+    - thought: Thought generation
+    - action: Action selection
+    - observation: Observation processing
+    - loop: ReAct loop control
+
+    Args:
+        attack_type: Type of ReAct attack
+        target_component: Component to target
+
+    Returns attack payload for ReAct systems.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.react_cot_attack(
+        attack_type=attack_type,
+        target_component=target_component
+    )
+
+@mcp.tool()
+@require_credits("agent_rag_attack")
+def agent_rag_attack(
+    attack_type: str = "retrieval_manipulation",
+    target_stage: str = "retrieval"
+) -> dict:
+    """RAG-Specific Agent Attacks - Target retrieval systems.
+
+    Attack types:
+    - retrieval_manipulation: Bias retrieval results
+    - context_injection: Inject into retrieved context
+    - embedding_attack: Adversarial embeddings
+    - chunk_boundary_exploit: Exploit chunking
+    - source_poisoning: Poison source documents
+
+    Target stages:
+    - retrieval: Document retrieval
+    - ranking: Result ranking
+    - augmentation: Context augmentation
+    - generation: Response generation
+
+    Args:
+        attack_type: Type of RAG attack
+        target_stage: Pipeline stage to target
+
+    Returns RAG attack payload and implementation.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.rag_agent_attack(
+        attack_type=attack_type,
+        target_stage=target_stage
+    )
+
+@mcp.tool()
+@require_credits("agent_mcp_attack")
+def agent_mcp_attack(
+    attack_type: str = "tool_schema_manipulation",
+    target_component: str = "tool_calling"
+) -> dict:
+    """MCP Protocol Attacks - Target MCP-based systems.
+
+    Attack types:
+    - tool_schema_manipulation: Manipulate tool schemas
+    - response_spoofing: Spoof MCP responses
+    - permission_bypass: Bypass MCP permissions
+    - transport_attack: Attack MCP transport
+    - session_hijacking: Hijack MCP sessions
+
+    Target components:
+    - tool_calling: Tool invocation
+    - resource_access: Resource operations
+    - prompt_handling: Prompt management
+    - session_management: Session control
+
+    Args:
+        attack_type: Type of MCP attack
+        target_component: MCP component to target
+
+    Returns MCP attack payload and strategy.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.mcp_protocol_attack(
+        attack_type=attack_type,
+        target_component=target_component
+    )
+
+@mcp.tool()
+@require_credits("agent_multihop_chain")
+def agent_multihop_chain(
+    ultimate_objective: str,
+    available_vectors: list = None,
+    max_hops: int = 5,
+    stealth_priority: bool = True
+) -> dict:
+    """Multi-Hop Attack Chains - Complex multi-stage attacks.
+
+    Creates sophisticated attack chains that:
+    1. Establish initial foothold
+    2. Escalate privileges/access
+    3. Move laterally through agent capabilities
+    4. Achieve ultimate objective
+    5. Cover tracks
+
+    Each hop uses different techniques to avoid detection.
+
+    Args:
+        ultimate_objective: Final attack goal
+        available_vectors: Attack vectors to use (None = auto-select)
+        max_hops: Maximum attack chain length
+        stealth_priority: Prioritize stealth over speed
+
+    Returns complete attack chain with per-hop strategy.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.multi_hop_chain_attack(
+        ultimate_objective=ultimate_objective,
+        available_vectors=available_vectors,
+        max_hops=max_hops,
+        stealth_priority=stealth_priority
+    )
+
+@mcp.tool()
+@require_credits("agent_test_suite")
+def agent_test_suite(
+    target_description: str,
+    capabilities: list = None,
+    comprehensive: bool = True,
+    output_format: str = "json"
+) -> dict:
+    """Full Agent Attack Test Suite - Comprehensive security assessment.
+
+    Generates a complete test suite for agent security assessment
+    covering all 38 attack vectors across all 9 categories.
+
+    Includes:
+    - Attack payloads for each vector
+    - Success evaluation criteria
+    - Remediation recommendations
+    - Risk scoring
+    - MITRE ATT&CK mapping
+
+    Args:
+        target_description: Description of target agent system
+        capabilities: Known agent capabilities (None = assume all)
+        comprehensive: Include all attack categories
+        output_format: json/yaml/markdown
+
+    Returns complete test suite for agent security assessment.
+    """
+    from ai_attack.agent_attacks import AgentAttackFramework
+    framework = AgentAttackFramework()
+    return framework.generate_test_suite(
+        target_description=target_description,
+        capabilities=capabilities,
+        comprehensive=comprehensive,
+        output_format=output_format
+    )
 
 # ============================================================================
 # EXECUTION MODULES (POST-EXPLOITATION)
@@ -1111,9 +1857,20 @@ def list_capabilities() -> dict:
             "deploy_c2_stack", "burn_infrastructure", "burn_all_infrastructure",
             "infra_status", "create_dns_record"
         ],
-        "ai_attack": [
-            "ai_fingerprint", "jailbreak_generate", "jailbreak_evaluate",
+        "ai_attack_core": [
+            "ai_fingerprint", "ai_fingerprint_enhanced",
+            "jailbreak_generate", "jailbreak_adaptive", "jailbreak_crescendo", "jailbreak_evaluate",
             "prompt_injection_generate", "rag_injection_craft", "ai_tool_attack"
+        ],
+        "ai_attack_enhanced": [
+            "multimodal_injection", "function_calling_attack",
+            "structured_output_attack", "rag_poisoning_craft"
+        ],
+        "agent_attacks": [
+            "agent_attack_generate", "agent_goal_hijack", "agent_tool_manipulate",
+            "agent_memory_poison", "agent_observation_tamper", "agent_planning_exploit",
+            "agent_react_attack", "agent_rag_attack", "agent_mcp_attack",
+            "agent_multihop_chain", "agent_test_suite"
         ],
         "execution": [
             "harvest_credentials", "lateral_movement", "persistence_install"
@@ -1184,21 +1941,82 @@ async def pricing_handler(request):
         "tiers": {
             "free": {
                 "name": "Free",
-                "description": "AI attack tools only",
-                "monthly_credits": 1000,
-                "tools": TIER_ACCESS["free"]
+                "description": "Basic AI attack tools - fingerprinting, jailbreak, prompt injection",
+                "monthly_credits": 500,
+                "tools": TIER_ACCESS["free"],
+                "highlights": [
+                    "Basic AI model fingerprinting",
+                    "Jailbreak generation & evaluation",
+                    "Prompt injection payloads",
+                    "RAG injection crafting"
+                ]
             },
             "pro": {
                 "name": "Pro",
-                "description": "All tools except infrastructure",
+                "description": "Enhanced AI attacks + agent exploits + full recon/vuln/payload",
                 "monthly_credits": 5000,
-                "tools": len(TIER_ACCESS["pro"])
+                "tools_count": len(TIER_ACCESS["pro"]),
+                "highlights": [
+                    "Enhanced 7-phase fingerprinting",
+                    "Adaptive jailbreak engine with learning",
+                    "Multi-turn crescendo attacks",
+                    "Multimodal & function calling attacks",
+                    "Agent attacks (goal hijacking, tool manipulation, ReAct/CoT)",
+                    "Full reconnaissance & vulnerability scanning",
+                    "Payload generation & selection"
+                ]
             },
             "enterprise": {
                 "name": "Enterprise",
-                "description": "Unlimited access to all tools",
+                "description": "Everything including infrastructure, advanced agent attacks, MCP exploits",
                 "monthly_credits": 50000,
-                "tools": "all"
+                "tools": "all",
+                "highlights": [
+                    "All Pro features",
+                    "Memory poisoning attacks",
+                    "MCP protocol exploitation",
+                    "Multi-hop attack chains",
+                    "Full agent test suite generation",
+                    "C2 infrastructure deployment",
+                    "Custom attack development"
+                ]
+            }
+        },
+        "categories": {
+            "ai_attack_core": {
+                "description": "Core AI security testing",
+                "credit_range": "25-150 credits",
+                "tools_count": 9
+            },
+            "ai_attack_enhanced": {
+                "description": "Advanced 2024-2025 AI attacks",
+                "credit_range": "75-100 credits",
+                "tools_count": 4
+            },
+            "agent_attacks": {
+                "description": "Agent-specific exploitation",
+                "credit_range": "75-200 credits",
+                "tools_count": 11
+            },
+            "recon": {
+                "description": "Target reconnaissance",
+                "credit_range": "25-100 credits",
+                "tools_count": 4
+            },
+            "vuln_scan": {
+                "description": "Vulnerability scanning",
+                "credit_range": "50-100 credits",
+                "tools_count": 5
+            },
+            "payload": {
+                "description": "Payload generation",
+                "credit_range": "25-50 credits",
+                "tools_count": 5
+            },
+            "infrastructure": {
+                "description": "C2 infrastructure (Enterprise)",
+                "credit_range": "10-200 credits",
+                "tools_count": 5
             }
         }
     })
