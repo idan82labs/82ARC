@@ -256,7 +256,7 @@ class AdvancedRecon:
                             first_seen=record.get("first_seen", ""),
                             last_seen=record.get("last_seen", ""),
                             source="securitytrails_history",
-                            count=record.get("organizations", [""])[0] if record.get("organizations") else ""
+                            count=record.get("count", 1)  # Use int count, not organization string
                         ))
                         if val.get("ip"):
                             self.ips.add(val["ip"])

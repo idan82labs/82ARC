@@ -505,6 +505,11 @@ done'''
                     decoder += " | xxd -r -p"
                 elif enc == "gzip_base64":
                     decoder += " | base64 -d | gunzip"
+                elif enc == "xor":
+                    # XOR decoder - key is prepended to payload as "key:data"
+                    decoder += " | { IFS=: read key data; echo $data | base64 -d | python3 -c 'import sys; key=int(sys.argv[1]); sys.stdout.buffer.write(bytes([b ^ key for b in sys.stdin.buffer.read()]))' $key; }"
+                elif enc == "rot13":
+                    decoder += " | tr 'A-Za-z' 'N-ZA-Mn-za-m'"
             return decoder
 
         elif config.target_lang == TargetLang.POWERSHELL:
