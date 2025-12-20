@@ -843,3 +843,250 @@ class AegisEngine:
             "errors": errors,
             "entries_checked": len(self.repository.get_all_audit_entries()),
         }
+
+    # ==================== Additional API Methods ====================
+
+    def list_scopes(self, principal: Principal) -> List[Scope]:
+        """List all scopes.
+
+        Args:
+            principal: Principal requesting the list
+
+        Returns:
+            List of Scope objects
+        """
+        self.auth.authorize(principal, "read", "scope")
+        return self.repository.list_scopes()
+
+    def approve_scope(
+        self,
+        scope_id: str,
+        signature: str,
+        principal: Principal,
+        comment: Optional[str] = None,
+    ) -> Scope:
+        """Approve a scope with Ed25519 signature.
+
+        Args:
+            scope_id: Scope to approve
+            signature: Base64-encoded Ed25519 signature of scope hash
+            principal: Principal providing approval
+            comment: Optional approval comment
+
+        Returns:
+            Updated Scope object
+        """
+        from aegis.core.models import Approval
+
+        scope = self.get_scope(scope_id, principal)
+
+        # Create approval
+        approval = Approval(
+            approver_id=principal.id,
+            signature=signature,
+            public_key_fingerprint=principal.public_key_fingerprint or "",
+            approved_at=datetime.utcnow(),
+            comment=comment,
+        )
+
+        # Add to scope
+        scope.approvals.append(approval)
+        self.repository.update_scope_approvals(scope_id, scope.approvals)
+
+        # Audit
+        self.audit.log(
+            principal_id=principal.id,
+            action="scope.approve",
+            target=scope_id,
+            scope_id=scope_id,
+            details={"comment": comment},
+        )
+
+        logger.info(f"Scope {scope_id} approved by {principal.id}")
+        return self.get_scope(scope_id, principal)
+
+    def list_packs(self) -> List["Pack"]:
+        """List all loaded packs.
+
+        Returns:
+            List of Pack objects
+        """
+        return list(self._packs.values())
+
+    def get_pack(self, pack_id: str) -> "Pack":
+        """Get a pack by ID.
+
+        Args:
+            pack_id: Pack ID
+
+        Returns:
+            Pack object
+        """
+        from aegis.core.exceptions import PackNotFoundError
+
+        pack = self._packs.get(pack_id)
+        if not pack:
+            raise PackNotFoundError(f"Pack {pack_id} not found")
+        return pack
+
+    def load_pack(self, pack: "Pack") -> None:
+        """Load a pack into the engine.
+
+        Args:
+            pack: Pack to load
+        """
+        self._packs[pack.name] = pack
+        logger.info(f"Loaded pack: {pack.name} v{pack.version}")
+
+    def create_principal(
+        self,
+        name: str,
+        roles: List[str],
+        admin: Principal,
+    ) -> tuple:
+        """Create a new principal.
+
+        Args:
+            name: Principal name
+            roles: List of role names
+            admin: Admin principal creating this principal
+
+        Returns:
+            Tuple of (Principal, api_key)
+        """
+        if not admin.is_admin():
+            raise AuthorizationError("Only admins can create principals")
+
+        import secrets
+
+        principal = Principal(
+            id=str(uuid.uuid4()),
+            name=name,
+            roles=roles,
+            api_key_hash="",  # Will be set below
+            created_at=datetime.utcnow(),
+        )
+
+        # Generate API key
+        api_key = self.auth.create_api_key(principal.id)
+        principal.api_key_hash = AuthService.hash_api_key(api_key)
+
+        self.repository.save_principal(principal)
+
+        # Audit
+        self.audit.log(
+            principal_id=admin.id,
+            action="principal.create",
+            target=principal.id,
+            details={"name": name, "roles": roles},
+        )
+
+        logger.info(f"Created principal {principal.id} by admin {admin.id}")
+        return principal, api_key
+
+    def list_principals(self, principal: Principal) -> List[Principal]:
+        """List all principals.
+
+        Args:
+            principal: Principal requesting the list (must be admin)
+
+        Returns:
+            List of Principal objects
+        """
+        if not principal.is_admin():
+            raise AuthorizationError("Only admins can list principals")
+        return self.repository.get_all_principals()
+
+    def register_public_key(
+        self,
+        principal_id: str,
+        public_key_pem: str,
+        admin: Principal,
+    ) -> Principal:
+        """Register a public key for a principal.
+
+        Args:
+            principal_id: Principal to register key for
+            public_key_pem: PEM-encoded Ed25519 public key
+            admin: Admin performing registration
+
+        Returns:
+            Updated Principal
+        """
+        from cryptography.hazmat.primitives import serialization
+
+        if not admin.is_admin():
+            raise AuthorizationError("Only admins can register public keys")
+
+        # Load PEM key
+        public_key = serialization.load_pem_public_key(public_key_pem.encode())
+        if not isinstance(public_key, Ed25519PublicKey):
+            raise ValueError("Only Ed25519 public keys are supported")
+
+        # Register via keystore
+        fingerprint = self.keystore.register_key(
+            principal=self.repository.get_principal(principal_id),
+            public_key=public_key,
+            registering_admin=admin,
+        )
+
+        return self.repository.get_principal(principal_id)
+
+    def revoke_principal(self, principal_id: str, admin: Principal) -> None:
+        """Revoke a principal's access.
+
+        Args:
+            principal_id: Principal to revoke
+            admin: Admin performing revocation
+        """
+        if not admin.is_admin():
+            raise AuthorizationError("Only admins can revoke principals")
+
+        self.repository.revoke_principal(principal_id)
+
+        # Audit
+        self.audit.log(
+            principal_id=admin.id,
+            action="principal.revoke",
+            target=principal_id,
+        )
+
+        logger.info(f"Revoked principal {principal_id} by admin {admin.id}")
+
+    def list_audit_entries(
+        self,
+        principal: Principal,
+        principal_id_filter: Optional[str] = None,
+        action: Optional[str] = None,
+        resource_type: Optional[str] = None,
+        since: Optional[datetime] = None,
+        limit: int = 100,
+    ) -> List[Any]:
+        """List audit log entries.
+
+        Args:
+            principal: Principal requesting entries (must be auditor)
+            principal_id_filter: Filter by principal
+            action: Filter by action
+            resource_type: Filter by resource type
+            since: Filter entries since this time
+            limit: Maximum entries to return
+
+        Returns:
+            List of AuditEntry objects
+        """
+        self.auth.authorize(principal, "read", "audit")
+
+        entries = self.repository.get_all_audit_entries()
+
+        # Apply filters
+        if principal_id_filter:
+            entries = [e for e in entries if e.principal_id == principal_id_filter]
+        if action:
+            entries = [e for e in entries if e.action == action]
+        if resource_type:
+            entries = [e for e in entries if e.resource_type == resource_type]
+        if since:
+            entries = [e for e in entries if e.timestamp >= since]
+
+        return entries[:limit]

@@ -80,6 +80,12 @@ class InsufficientApprovalsError(ScopeError):
     pass
 
 
+class ScopeNotApprovedError(ScopeError):
+    """Scope has not been approved."""
+
+    pass
+
+
 # Pack Errors
 class PackError(AegisError):
     """Base class for pack-related errors."""

@@ -200,6 +200,14 @@ class Repository(ABC):
     def update_scope_requests(self, scope_id: str, used: int) -> None:
         ...
 
+    @abstractmethod
+    def update_scope_approvals(self, scope_id: str, approvals: List[Approval]) -> None:
+        ...
+
+    @abstractmethod
+    def revoke_principal(self, principal_id: str) -> None:
+        ...
+
     # Target operations
     @abstractmethod
     def save_target(self, target: Target) -> str:
@@ -553,6 +561,30 @@ class SQLiteRepository(Repository):
             conn.execute(
                 "UPDATE scopes SET requests_used = ? WHERE id = ?",
                 (used, scope_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def update_scope_approvals(self, scope_id: str, approvals: List[Approval]) -> None:
+        """Update scope approvals list."""
+        conn = self._get_conn()
+        try:
+            conn.execute(
+                "UPDATE scopes SET approvals = ? WHERE id = ?",
+                (json.dumps([a.to_dict() for a in approvals]), scope_id),
+            )
+            conn.commit()
+        finally:
+            conn.close()
+
+    def revoke_principal(self, principal_id: str) -> None:
+        """Revoke a principal."""
+        conn = self._get_conn()
+        try:
+            conn.execute(
+                "UPDATE principals SET is_revoked = 1 WHERE id = ?",
+                (principal_id,),
             )
             conn.commit()
         finally:
