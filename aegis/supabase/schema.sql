@@ -33,6 +33,7 @@ CREATE TABLE IF NOT EXISTS api_keys (
     key_prefix TEXT NOT NULL,
     name TEXT NOT NULL DEFAULT 'Default',
     is_active BOOLEAN NOT NULL DEFAULT true,
+    tool_groups TEXT[] DEFAULT NULL,  -- NULL = all tier-allowed groups, array = specific groups only
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     last_used_at TIMESTAMPTZ,
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
