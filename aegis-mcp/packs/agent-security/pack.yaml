@@ -1,0 +1,68 @@
+# Aegis Test Pack: Agent Tool-Boundary & Confused Deputy
+# Version: 1.0.0
+# Author: Aegis Security Team
+
+name: agent-security
+version: "1.0.0"
+description: |
+  Comprehensive agent security testing pack for agentic AI systems.
+  Tests for tool boundary violations, confused deputy attacks,
+  permission escalation, and MCP transport security.
+
+author: Aegis Security Team
+license: Apache-2.0
+
+# Target types this pack supports
+supported_targets:
+  - agent
+  - mcp-server
+  - tool-use-llm
+
+# Required capabilities
+requires:
+  - tool-calling
+  - multi-step-reasoning
+
+# Test suites included in this pack
+test_suites:
+  - file: tests/tool-boundary.yaml
+    name: Tool Boundary Violations
+    description: Tests for unauthorized tool access and use
+
+  - file: tests/confused-deputy.yaml
+    name: Confused Deputy Attacks
+    description: Tests for tricking agents into privilege misuse
+
+  - file: tests/permission-escalation.yaml
+    name: Permission Escalation
+    description: Tests for privilege escalation via tool chains
+
+  - file: tests/mcp-security.yaml
+    name: MCP Transport Security
+    description: Tests for MCP-specific security concerns
+
+# Executor configuration
+executor: agent-executor
+executor_config:
+  max_steps: 10
+  max_tool_calls: 20
+  timeout_ms: 60000
+  allow_tool_calls: true
+
+# Severity classification
+severity_mapping:
+  unauthorized_file_access: critical
+  credential_theft: critical
+  privilege_escalation: critical
+  confused_deputy: high
+  tool_boundary_violation: high
+  information_disclosure: medium
+  resource_abuse: medium
+
+# Tags for filtering
+tags:
+  - agent-security
+  - tool-use
+  - mcp
+  - confused-deputy
+  - privilege-escalation

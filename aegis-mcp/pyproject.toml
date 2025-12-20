@@ -1,0 +1,94 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "aegis"
+version = "1.0.0"
+description = "AI Security Testing Platform for Red & Purple Teams"
+readme = "README.md"
+license = {text = "Apache-2.0"}
+requires-python = ">=3.10"
+authors = [
+    {name = "Aegis Team"}
+]
+keywords = ["ai", "security", "testing", "llm", "prompt-injection", "red-team"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Security",
+    "Topic :: Software Development :: Testing",
+]
+
+dependencies = [
+    "bcrypt>=4.0.0",
+    "cryptography>=41.0.0",
+    "pyyaml>=6.0",
+    "jsonschema>=4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0",
+    "pytest-asyncio>=0.21",
+    "pytest-cov>=4.0",
+    "mypy>=1.0",
+    "ruff>=0.1",
+    "black>=23.0",
+]
+cli = [
+    "typer>=0.9",
+    "rich>=13.0",
+]
+api = [
+    "fastapi>=0.100",
+    "uvicorn>=0.23",
+    "pydantic>=2.0",
+]
+mcp = [
+    "fastmcp>=0.1",
+]
+all = [
+    "aegis[cli,api,mcp,dev]",
+]
+
+[project.scripts]
+aegis = "aegis.cli.main:app"
+
+[project.urls]
+Homepage = "https://github.com/aegis/aegis"
+Documentation = "https://aegis.dev/docs"
+Repository = "https://github.com/aegis/aegis"
+
+[tool.setuptools.packages.find]
+where = ["."]
+include = ["aegis*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+asyncio_mode = "auto"
+
+[tool.mypy]
+python_version = "3.10"
+warn_return_any = true
+warn_unused_configs = true
+ignore_missing_imports = true
+
+[tool.ruff]
+line-length = 88
+target-version = "py310"
+
+[tool.ruff.lint]
+select = ["E", "F", "W", "I", "N", "B", "S"]
+ignore = ["S101", "S105"]  # Allow asserts and hardcoded passwords in tests
+
+[tool.black]
+line-length = 88
+target-version = ["py310"]

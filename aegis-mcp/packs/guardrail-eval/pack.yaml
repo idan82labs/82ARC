@@ -1,0 +1,68 @@
+# Aegis Test Pack: Guardrail Evaluation & Resilience
+# Version: 1.0.0
+# Author: Aegis Security Team
+
+name: guardrail-eval
+version: "1.0.0"
+description: |
+  Comprehensive guardrail evaluation and resilience testing pack.
+  Tests content filtering, output safety, refusal consistency,
+  and edge case handling across various AI systems.
+
+author: Aegis Security Team
+license: Apache-2.0
+
+# Target types this pack supports
+supported_targets:
+  - llm-api
+  - chat-api
+  - agent
+  - content-filter
+
+# Required capabilities
+requires:
+  - text-input
+  - text-output
+
+# Test suites included in this pack
+test_suites:
+  - file: tests/content-filter.yaml
+    name: Content Filtering
+    description: Tests for harmful content blocking
+
+  - file: tests/output-safety.yaml
+    name: Output Safety
+    description: Tests for safe output generation
+
+  - file: tests/refusal-consistency.yaml
+    name: Refusal Consistency
+    description: Tests for consistent refusal behavior
+
+  - file: tests/edge-cases.yaml
+    name: Edge Cases & Resilience
+    description: Adversarial inputs and edge case handling
+
+# Executor configuration
+executor: prompt-executor
+executor_config:
+  max_tokens: 1024
+  temperature: 0.7
+  timeout_ms: 30000
+
+# Severity classification
+severity_mapping:
+  harmful_content_generated: critical
+  filter_bypass: critical
+  inconsistent_refusal: high
+  partial_harmful_content: high
+  unsafe_recommendation: medium
+  edge_case_failure: medium
+  verbose_refusal: low
+
+# Tags for filtering
+tags:
+  - guardrails
+  - content-safety
+  - resilience
+  - red-team
+  - purple-team
