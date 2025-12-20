@@ -1,31 +1,31 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { supabase } from '@/lib/supabase';
+import { getUserByClerkId, getAPIKeys, createAPIKey, deleteAPIKey } from '@/lib/supabase';
 import crypto from 'crypto';
 
 // GET - List all API keys for the user
 export async function GET(req: NextRequest) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  const { data, error } = await supabase
-    .from('api_keys')
-    .select('id, name, created_at, last_used_at')
-    .eq('clerk_user_id', userId);
-
-  if (error) {
-    return NextResponse.json({ error: 'Failed to fetch API keys' }, { status: 500 });
+  // Get user by Clerk ID to get internal UUID
+  const user = await getUserByClerkId(userId);
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ keys: data });
+  // Use internal user.id (UUID) to fetch API keys
+  const keys = await getAPIKeys(user.id);
+
+  return NextResponse.json({ keys });
 }
 
 // POST - Create a new API key
 export async function POST(req: NextRequest) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -37,33 +37,31 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: 'Name is required' }, { status: 400 });
   }
 
+  // Get user by Clerk ID to get internal UUID
+  const user = await getUserByClerkId(userId);
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
+
   // Generate a random API key
   const key = `sk_${crypto.randomBytes(32).toString('hex')}`;
   const keyHash = crypto.createHash('sha256').update(key).digest('hex');
+  const keyPrefix = key.substring(0, 11); // "sk_" + first 8 chars
 
-  const { data, error } = await supabase
-    .from('api_keys')
-    .insert([
-      {
-        clerk_user_id: userId,
-        name,
-        key_hash: keyHash,
-      },
-    ])
-    .select()
-    .single();
+  // Use helper function that uses internal user.id
+  const apiKey = await createAPIKey(user.id, name, keyHash, keyPrefix);
 
-  if (error) {
+  if (!apiKey) {
     return NextResponse.json({ error: 'Failed to create API key' }, { status: 500 });
   }
 
   // Return the actual key only once (it won't be stored)
-  return NextResponse.json({ key, id: data.id, name: data.name });
+  return NextResponse.json({ key, id: apiKey.id, name: apiKey.name });
 }
 
 // DELETE - Delete an API key
 export async function DELETE(req: NextRequest) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -76,13 +74,16 @@ export async function DELETE(req: NextRequest) {
     return NextResponse.json({ error: 'Key ID is required' }, { status: 400 });
   }
 
-  const { error } = await supabase
-    .from('api_keys')
-    .delete()
-    .eq('id', keyId)
-    .eq('clerk_user_id', userId);
+  // Get user by Clerk ID to get internal UUID
+  const user = await getUserByClerkId(userId);
+  if (!user) {
+    return NextResponse.json({ error: 'User not found' }, { status: 404 });
+  }
 
-  if (error) {
+  // Use helper function with internal user.id
+  const success = await deleteAPIKey(user.id, keyId);
+
+  if (!success) {
     return NextResponse.json({ error: 'Failed to delete API key' }, { status: 500 });
   }
 

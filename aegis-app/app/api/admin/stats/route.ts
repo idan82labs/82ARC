@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@supabase/supabase-js';
 import { auth, currentUser } from '@clerk/nextjs/server';
+import { getUserByClerkId } from '@/lib/supabase';
 
 // Initialize Supabase client
 const supabase = createClient(
@@ -19,22 +20,26 @@ async function isAdmin(request: NextRequest): Promise<boolean> {
 
   // Check Clerk authentication
   try {
-    const { userId } = await auth();
-    if (!userId) return false;
+    const { userId: clerkId } = await auth();
+    if (!clerkId) return false;
 
-    const user = await currentUser();
-    if (!user) return false;
+    const clerkUser = await currentUser();
+    if (!clerkUser) return false;
 
     // Check Clerk metadata for admin role
-    if (user.publicMetadata?.role === 'admin' || user.publicMetadata?.role === 'super_admin') {
+    if (clerkUser.publicMetadata?.role === 'admin' || clerkUser.publicMetadata?.role === 'super_admin') {
       return true;
     }
 
-    // Check Supabase admin_users table
+    // Get internal user ID from Clerk ID
+    const user = await getUserByClerkId(clerkId);
+    if (!user) return false;
+
+    // Check Supabase admin_users table using internal UUID
     const { data: adminUser } = await supabase
       .from('admin_users')
       .select('id, role')
-      .eq('user_id', userId)
+      .eq('user_id', user.id)  // FIXED: Use internal UUID, not Clerk ID
       .single();
 
     return !!adminUser;

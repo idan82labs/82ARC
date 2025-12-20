@@ -1,11 +1,11 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getUserByClerkId } from '@/lib/supabase';
+import { getUserByClerkId, getUserTier } from '@/lib/supabase';
 import { createCheckoutSession } from '@/lib/stripe';
 
-// GET - Get user's credit balance
+// GET - Get user's credit balance and tier
 export async function GET(req: NextRequest) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -17,12 +17,17 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'User not found' }, { status: 404 });
   }
 
-  return NextResponse.json({ credits: user.credits });
+  // Credits are now in user.credits.balance (separate table)
+  return NextResponse.json({
+    credits: user.credits.balance,
+    tier: user.credits.tier,
+    monthly_refill: user.credits.monthly_refill,
+  });
 }
 
 // POST - Create a Stripe checkout session for purchasing credits
 export async function POST(req: NextRequest) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });

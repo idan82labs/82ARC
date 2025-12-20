@@ -1,6 +1,6 @@
 import { headers } from 'next/headers';
 import { constructWebhookEvent } from '@/lib/stripe';
-import { updateUserCredits } from '@/lib/supabase';
+import { getUserByClerkId, addCredits, recordTransaction } from '@/lib/supabase';
 
 export async function POST(req: Request) {
   const body = await req.text();
@@ -19,12 +19,33 @@ export async function POST(req: Request) {
   switch (event.type) {
     case 'checkout.session.completed': {
       const session = event.data.object;
-      const { userId, credits, bonus } = session.metadata || {};
+      // userId in metadata is the Clerk ID, not the internal UUID
+      const { userId: clerkId, credits, bonus } = session.metadata || {};
 
-      if (userId && credits) {
+      if (clerkId && credits) {
+        // Look up user by Clerk ID to get internal UUID
+        const user = await getUserByClerkId(clerkId);
+        if (!user) {
+          console.error(`User not found for Clerk ID: ${clerkId}`);
+          break;
+        }
+
         const totalCredits = parseInt(credits) + (parseInt(bonus || '0'));
-        await updateUserCredits(userId, totalCredits);
-        console.log(`Added ${totalCredits} credits to user ${userId}`);
+        const amountCents = session.amount_total || 0;
+
+        // Add credits using internal user ID
+        await addCredits(user.id, totalCredits);
+
+        // Record the transaction for audit trail
+        await recordTransaction(
+          user.id,
+          'purchase',
+          totalCredits,
+          amountCents,
+          session.payment_intent as string
+        );
+
+        console.log(`Added ${totalCredits} credits to user ${user.id} (Clerk: ${clerkId})`);
       }
       break;
     }

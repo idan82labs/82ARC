@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { supabase, getUserByClerkId } from '@/lib/supabase';
+import { getUserByClerkId, getUsageHistory } from '@/lib/supabase';
 
 // GET - Get usage history for the user
 export async function GET(req: NextRequest) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -20,16 +20,8 @@ export async function GET(req: NextRequest) {
   const limit = parseInt(searchParams.get('limit') || '100');
   const offset = parseInt(searchParams.get('offset') || '0');
 
-  const { data, error } = await supabase
-    .from('usage')
-    .select('*')
-    .eq('user_id', user.id)
-    .order('created_at', { ascending: false })
-    .range(offset, offset + limit - 1);
+  // Use helper function that queries the usage table correctly
+  const usage = await getUsageHistory(user.id, limit, offset);
 
-  if (error) {
-    return NextResponse.json({ error: 'Failed to fetch usage' }, { status: 500 });
-  }
-
-  return NextResponse.json({ usage: data });
+  return NextResponse.json({ usage });
 }

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { auth } from '@clerk/nextjs/server';
-import { getUserByClerkId, logUsage, updateUserCredits } from '@/lib/supabase';
+import { getUserByClerkId, logUsage, deductCredits } from '@/lib/supabase';
 import { getCreditCost } from '@/lib/credits';
 
 // This is a proxy endpoint to the Aegis MCP server
@@ -12,7 +12,7 @@ export async function POST(
   req: NextRequest,
   { params }: { params: { path: string[] } }
 ) {
-  const { userId } = auth();
+  const { userId } = await auth();
 
   if (!userId) {
     return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
@@ -29,10 +29,10 @@ export async function POST(
   const operation = determineOperation(path);
   const cost = getCreditCost(operation);
 
-  // Check if user has enough credits
-  if (user.credits < cost) {
+  // Check if user has enough credits (credits are in user.credits.balance)
+  if (user.credits.balance < cost) {
     return NextResponse.json(
-      { error: 'Insufficient credits', required: cost, available: user.credits },
+      { error: 'Insufficient credits', required: cost, available: user.credits.balance },
       { status: 402 }
     );
   }
@@ -54,8 +54,9 @@ export async function POST(
     const data = await mcpResponse.json();
 
     if (mcpResponse.ok) {
-      // Deduct credits and log usage
-      await updateUserCredits(user.id, -cost);
+      // Deduct credits atomically using deductCredits (not updateUserCredits)
+      await deductCredits(user.id, cost);
+      // logUsage now uses tool_name column correctly
       await logUsage(user.id, operation, cost, { path, request: body });
     }
 
