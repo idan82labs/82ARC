@@ -1,8 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
+import { createClient } from '@supabase/supabase-js';
+import { auth, currentUser } from '@clerk/nextjs/server';
 
-// Admin role check - in production, verify from Clerk/Supabase
+// Initialize Supabase client
+const supabase = createClient(
+  process.env.NEXT_PUBLIC_SUPABASE_URL!,
+  process.env.SUPABASE_SERVICE_ROLE_KEY!
+);
+
+// Admin role check - verify from Clerk metadata and Supabase
 async function isAdmin(request: NextRequest): Promise<boolean> {
-  const authHeader = request.headers.get('authorization');
   const apiKey = request.headers.get('x-api-key');
 
   // For development/demo - check for admin API key
@@ -10,15 +17,141 @@ async function isAdmin(request: NextRequest): Promise<boolean> {
     return true;
   }
 
-  // In production, verify Clerk session and check admin role
-  // const { userId } = auth();
-  // const user = await clerkClient.users.getUser(userId);
-  // return user.publicMetadata.role === 'admin';
+  // Check Clerk authentication
+  try {
+    const { userId } = await auth();
+    if (!userId) return false;
 
-  return false;
+    const user = await currentUser();
+    if (!user) return false;
+
+    // Check Clerk metadata for admin role
+    if (user.publicMetadata?.role === 'admin' || user.publicMetadata?.role === 'super_admin') {
+      return true;
+    }
+
+    // Check Supabase admin_users table
+    const { data: adminUser } = await supabase
+      .from('admin_users')
+      .select('id, role')
+      .eq('user_id', userId)
+      .single();
+
+    return !!adminUser;
+  } catch {
+    return false;
+  }
 }
 
-// Mock data for demo - in production, query Supabase
+// Get real stats from Supabase using stored functions
+async function getRealStats() {
+  const now = new Date();
+
+  try {
+    // Fetch all stats in parallel using Supabase RPC functions
+    const [
+      overviewResult,
+      usersByTierResult,
+      creditUsageResult,
+      topToolsResult,
+      dailyUsageResult,
+      recentSignupsResult,
+      topUsersResult,
+      systemHealthResult,
+      activeAlertsResult,
+      revenueByTierResult
+    ] = await Promise.all([
+      supabase.rpc('get_admin_overview_stats'),
+      supabase.rpc('get_users_by_tier'),
+      supabase.rpc('get_credit_usage_by_category', { p_days: 30 }),
+      supabase.rpc('get_top_tools', { p_days: 30, p_limit: 10 }),
+      supabase.rpc('get_daily_usage_stats', { p_days: 30 }),
+      supabase.rpc('get_recent_signups', { p_limit: 5 }),
+      supabase.rpc('get_top_users_by_usage', { p_days: 30, p_limit: 5 }),
+      supabase.rpc('get_system_health'),
+      supabase.rpc('get_active_alerts', { p_limit: 10 }),
+      supabase.rpc('get_revenue_by_tier', { p_days: 30 })
+    ]);
+
+    const overview = overviewResult.data || {};
+    const usersByTier = usersByTierResult.data || { free: 0, pro: 0, enterprise: 0 };
+    const creditUsage = creditUsageResult.data || {};
+    const topTools = topToolsResult.data || [];
+    const dailyUsage = dailyUsageResult.data || [];
+    const recentSignups = recentSignupsResult.data || [];
+    const topUsers = topUsersResult.data || [];
+    const systemHealth = systemHealthResult.data || {};
+    const activeAlerts = activeAlertsResult.data || [];
+    const revenueByTier = revenueByTierResult.data || {};
+
+    // Calculate additional metrics
+    const totalRevenueCents = overview.total_revenue_cents || 0;
+
+    return {
+      overview: {
+        total_users: overview.total_users || 0,
+        active_users_30d: overview.active_users_30d || 0,
+        new_users_30d: overview.new_users_30d || 0,
+        total_credits_used: overview.total_credits_used || 0,
+        total_revenue: totalRevenueCents / 100,
+        active_operations: overview.active_scans || 0,
+        avg_session_duration: 'N/A', // Would need session tracking
+      },
+
+      users_by_tier: usersByTier,
+
+      credit_usage_by_category: creditUsage,
+
+      top_tools_30d: topTools,
+
+      daily_usage_30d: dailyUsage,
+
+      revenue_by_tier: revenueByTier,
+
+      system_health: {
+        mcp_server_status: systemHealth.mcp_server_status || 'unknown',
+        mcp_server_uptime: 'N/A', // Would need uptime tracking
+        mcp_server_latency_ms: systemHealth.mcp_server_latency_ms || 0,
+        api_requests_24h: systemHealth.api_requests_24h || 0,
+        api_errors_24h: systemHealth.api_errors_24h || 0,
+        api_error_rate: systemHealth.api_requests_24h > 0
+          ? `${((systemHealth.api_errors_24h / systemHealth.api_requests_24h) * 100).toFixed(2)}%`
+          : '0%',
+        database_connections: 'N/A',
+        database_pool_size: 100,
+        cache_hit_rate: 'N/A',
+      },
+
+      recent_signups: recentSignups.map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        tier: u.tier,
+        signed_up: u.signed_up,
+      })),
+
+      top_users_by_usage: topUsers.map((u: any) => ({
+        id: u.id,
+        email: u.email,
+        tier: u.tier,
+        credits_used: u.credits_used,
+        last_active: u.last_active,
+      })),
+
+      alerts: activeAlerts.map((a: any) => ({
+        level: a.level,
+        message: a.message || a.title,
+        timestamp: a.timestamp,
+      })),
+
+      generated_at: now.toISOString(),
+    };
+  } catch (error) {
+    console.error('Error fetching real stats:', error);
+    throw error;
+  }
+}
+
+// Mock data for demo/development - used when Supabase is not configured
 function getMockStats() {
   const now = new Date();
   const thirtyDaysAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000);
@@ -131,20 +264,37 @@ export async function GET(request: NextRequest) {
   }
 
   try {
-    // In production, query Supabase for real data
-    // const supabase = createClient(...)
-    // const { data: users } = await supabase.from('users').select('*')
-    // const { data: usage } = await supabase.from('usage_logs').select('*')
+    // Check if we should use real data or mock data
+    const useRealData = process.env.SUPABASE_SERVICE_ROLE_KEY &&
+                        process.env.NEXT_PUBLIC_SUPABASE_URL &&
+                        process.env.USE_REAL_ADMIN_DATA === 'true';
 
-    const stats = getMockStats();
+    let stats;
+    if (useRealData) {
+      // Production mode: query Supabase using stored functions
+      stats = await getRealStats();
+    } else {
+      // Development/demo mode: use mock data
+      stats = getMockStats();
+    }
 
     return NextResponse.json(stats);
   } catch (error) {
     console.error('Admin stats error:', error);
-    return NextResponse.json(
-      { error: 'Failed to fetch admin stats' },
-      { status: 500 }
-    );
+
+    // Fallback to mock data if real data fetch fails
+    try {
+      const fallbackStats = getMockStats();
+      return NextResponse.json({
+        ...fallbackStats,
+        _warning: 'Using mock data due to database error'
+      });
+    } catch {
+      return NextResponse.json(
+        { error: 'Failed to fetch admin stats' },
+        { status: 500 }
+      );
+    }
   }
 }
 
@@ -163,14 +313,20 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { action, target } = body;
 
+    const useRealData = process.env.SUPABASE_SERVICE_ROLE_KEY &&
+                        process.env.NEXT_PUBLIC_SUPABASE_URL;
+
     switch (action) {
       case 'refresh_cache':
-        // Clear and refresh stats cache
+        // Trigger daily stats aggregation
+        if (useRealData) {
+          await supabase.rpc('aggregate_daily_stats');
+        }
         return NextResponse.json({ success: true, message: 'Cache refreshed' });
 
       case 'export_report':
         // Generate exportable report
-        const stats = getMockStats();
+        const stats = useRealData ? await getRealStats() : getMockStats();
         return NextResponse.json({
           success: true,
           report: stats,
@@ -184,7 +340,29 @@ export async function POST(request: NextRequest) {
         if (!user_id || !amount) {
           return NextResponse.json({ error: 'Missing user_id or amount' }, { status: 400 });
         }
-        // In production: update Supabase
+
+        if (useRealData) {
+          // Use Supabase function to adjust credits
+          const adjustFn = amount > 0 ? 'add_credits' : 'deduct_credits';
+          const { error } = await supabase.rpc(adjustFn, {
+            p_user_id: user_id,
+            p_amount: Math.abs(amount)
+          });
+
+          if (error) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+          }
+
+          // Log the admin action
+          await supabase.rpc('create_admin_alert', {
+            p_level: 'info',
+            p_category: 'billing',
+            p_title: 'Credits adjusted',
+            p_message: `Admin adjusted ${amount} credits for user ${user_id}. Reason: ${reason || 'N/A'}`,
+            p_metadata: { user_id, amount, reason }
+          });
+        }
+
         return NextResponse.json({
           success: true,
           message: `Adjusted ${amount} credits for user ${user_id}`,
@@ -197,9 +375,78 @@ export async function POST(request: NextRequest) {
         if (!target_user_id) {
           return NextResponse.json({ error: 'Missing target_user_id' }, { status: 400 });
         }
+
+        if (useRealData) {
+          // Deactivate all API keys for the user
+          await supabase
+            .from('api_keys')
+            .update({ is_active: false })
+            .eq('user_id', target_user_id);
+
+          // Set credits to 0
+          await supabase
+            .from('credits')
+            .update({ balance: 0 })
+            .eq('user_id', target_user_id);
+
+          // Log the admin action
+          await supabase.rpc('create_admin_alert', {
+            p_level: 'warning',
+            p_category: 'user',
+            p_title: 'User disabled',
+            p_message: `Admin disabled user ${target_user_id}`,
+            p_metadata: { target_user_id }
+          });
+        }
+
         return NextResponse.json({
           success: true,
           message: `User ${target_user_id} disabled`
+        });
+
+      case 'acknowledge_alert':
+        // Acknowledge an admin alert
+        const { alert_id, admin_id } = target || {};
+        if (!alert_id) {
+          return NextResponse.json({ error: 'Missing alert_id' }, { status: 400 });
+        }
+
+        if (useRealData) {
+          const { error } = await supabase.rpc('acknowledge_alert', {
+            p_alert_id: alert_id,
+            p_admin_id: admin_id
+          });
+
+          if (error) {
+            return NextResponse.json({ error: error.message }, { status: 400 });
+          }
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: `Alert ${alert_id} acknowledged`
+        });
+
+      case 'log_health':
+        // Log system health status
+        const { service, status, latency_ms, request_count, error_count } = target || {};
+        if (!service || !status) {
+          return NextResponse.json({ error: 'Missing service or status' }, { status: 400 });
+        }
+
+        if (useRealData) {
+          await supabase.rpc('log_system_health', {
+            p_service: service,
+            p_status: status,
+            p_latency_ms: latency_ms || null,
+            p_request_count: request_count || 0,
+            p_error_count: error_count || 0
+          });
+        }
+
+        return NextResponse.json({
+          success: true,
+          message: `Health logged for ${service}`
         });
 
       default:

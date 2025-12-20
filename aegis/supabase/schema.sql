@@ -448,6 +448,640 @@ GRANT ALL ON ALL SEQUENCES IN SCHEMA public TO service_role;
 GRANT ALL ON ALL FUNCTIONS IN SCHEMA public TO service_role;
 
 -- ============================================================================
+-- ADMIN TABLES
+-- ============================================================================
+
+-- Admin users table (separate from regular users for role management)
+CREATE TABLE IF NOT EXISTS admin_users (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    role TEXT NOT NULL DEFAULT 'admin' CHECK (role IN ('admin', 'super_admin', 'readonly')),
+    permissions JSONB DEFAULT '{"view_stats": true, "manage_users": false, "manage_credits": false}'::jsonb,
+    granted_by UUID REFERENCES admin_users(id),
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    UNIQUE(user_id)
+);
+
+-- System health logs table
+CREATE TABLE IF NOT EXISTS system_health_logs (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    service_name TEXT NOT NULL CHECK (service_name IN ('mcp_server', 'api', 'database', 'auth', 'billing')),
+    status TEXT NOT NULL CHECK (status IN ('healthy', 'degraded', 'unhealthy', 'maintenance')),
+    latency_ms INTEGER,
+    error_count INTEGER DEFAULT 0,
+    request_count INTEGER DEFAULT 0,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    recorded_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Admin alerts table
+CREATE TABLE IF NOT EXISTS admin_alerts (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    level TEXT NOT NULL CHECK (level IN ('info', 'warning', 'error', 'critical')),
+    category TEXT NOT NULL CHECK (category IN ('security', 'performance', 'billing', 'system', 'user')),
+    title TEXT NOT NULL,
+    message TEXT NOT NULL,
+    metadata JSONB DEFAULT '{}'::jsonb,
+    is_acknowledged BOOLEAN DEFAULT false,
+    acknowledged_by UUID REFERENCES admin_users(id),
+    acknowledged_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Security scans table
+CREATE TABLE IF NOT EXISTS scans (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    scan_type TEXT NOT NULL,
+    target_type TEXT NOT NULL CHECK (target_type IN ('llm', 'agent', 'rag', 'api', 'multimodal')),
+    status TEXT NOT NULL DEFAULT 'pending' CHECK (status IN ('pending', 'running', 'completed', 'failed', 'cancelled')),
+    credits_used INTEGER DEFAULT 0,
+    results JSONB DEFAULT '{}'::jsonb,
+    started_at TIMESTAMPTZ,
+    completed_at TIMESTAMPTZ,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- Daily stats aggregation table (for fast admin queries)
+CREATE TABLE IF NOT EXISTS daily_stats (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    date DATE NOT NULL UNIQUE,
+    total_users INTEGER DEFAULT 0,
+    new_users INTEGER DEFAULT 0,
+    active_users INTEGER DEFAULT 0,
+    total_credits_used BIGINT DEFAULT 0,
+    total_revenue_cents BIGINT DEFAULT 0,
+    total_api_requests INTEGER DEFAULT 0,
+    total_scans INTEGER DEFAULT 0,
+    users_by_tier JSONB DEFAULT '{"free": 0, "pro": 0, "enterprise": 0}'::jsonb,
+    top_tools JSONB DEFAULT '[]'::jsonb,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+    updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+);
+
+-- ============================================================================
+-- ADMIN INDEXES
+-- ============================================================================
+
+CREATE INDEX IF NOT EXISTS idx_admin_users_user_id ON admin_users(user_id);
+CREATE INDEX IF NOT EXISTS idx_admin_users_role ON admin_users(role);
+
+CREATE INDEX IF NOT EXISTS idx_system_health_logs_service ON system_health_logs(service_name);
+CREATE INDEX IF NOT EXISTS idx_system_health_logs_status ON system_health_logs(status);
+CREATE INDEX IF NOT EXISTS idx_system_health_logs_recorded_at ON system_health_logs(recorded_at);
+
+CREATE INDEX IF NOT EXISTS idx_admin_alerts_level ON admin_alerts(level);
+CREATE INDEX IF NOT EXISTS idx_admin_alerts_category ON admin_alerts(category);
+CREATE INDEX IF NOT EXISTS idx_admin_alerts_created_at ON admin_alerts(created_at);
+CREATE INDEX IF NOT EXISTS idx_admin_alerts_acknowledged ON admin_alerts(is_acknowledged);
+
+CREATE INDEX IF NOT EXISTS idx_scans_user_id ON scans(user_id);
+CREATE INDEX IF NOT EXISTS idx_scans_status ON scans(status);
+CREATE INDEX IF NOT EXISTS idx_scans_target_type ON scans(target_type);
+CREATE INDEX IF NOT EXISTS idx_scans_created_at ON scans(created_at);
+
+CREATE INDEX IF NOT EXISTS idx_daily_stats_date ON daily_stats(date);
+
+-- ============================================================================
+-- ADMIN FUNCTIONS
+-- ============================================================================
+
+-- Function: Check if user is admin
+CREATE OR REPLACE FUNCTION is_admin(p_user_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    RETURN EXISTS (
+        SELECT 1 FROM admin_users
+        WHERE user_id = p_user_id
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get admin overview stats
+CREATE OR REPLACE FUNCTION get_admin_overview_stats()
+RETURNS JSONB AS $$
+DECLARE
+    v_result JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'total_users', (SELECT COUNT(*) FROM users),
+        'active_users_30d', (
+            SELECT COUNT(DISTINCT user_id)
+            FROM usage
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+        ),
+        'new_users_30d', (
+            SELECT COUNT(*)
+            FROM users
+            WHERE created_at >= NOW() - INTERVAL '30 days'
+        ),
+        'total_credits_used', (SELECT COALESCE(SUM(credits_used), 0) FROM usage),
+        'total_revenue_cents', (SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE type = 'purchase'),
+        'active_scans', (SELECT COUNT(*) FROM scans WHERE status = 'running')
+    ) INTO v_result;
+
+    RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get users by tier
+CREATE OR REPLACE FUNCTION get_users_by_tier()
+RETURNS JSONB AS $$
+BEGIN
+    RETURN (
+        SELECT jsonb_object_agg(tier, cnt)
+        FROM (
+            SELECT tier, COUNT(*) as cnt
+            FROM credits
+            GROUP BY tier
+        ) t
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get credit usage by tool category
+CREATE OR REPLACE FUNCTION get_credit_usage_by_category(p_days INTEGER DEFAULT 30)
+RETURNS JSONB AS $$
+DECLARE
+    v_result JSONB;
+BEGIN
+    SELECT jsonb_object_agg(category, total_credits)
+    INTO v_result
+    FROM (
+        SELECT
+            CASE
+                WHEN tool_name LIKE 'jailbreak%' THEN 'ai_attack_core'
+                WHEN tool_name LIKE 'ai_fingerprint%' THEN 'ai_attack_core'
+                WHEN tool_name LIKE 'prompt_injection%' THEN 'ai_attack_enhanced'
+                WHEN tool_name LIKE 'rag_%' THEN 'ai_attack_enhanced'
+                WHEN tool_name LIKE 'agent_%' THEN 'agent_attacks'
+                WHEN tool_name LIKE 'mcp_%' THEN 'agent_attacks'
+                WHEN tool_name LIKE 'multimodal%' THEN 'ai_attack_enhanced'
+                WHEN tool_name LIKE 'function_calling%' THEN 'agent_attacks'
+                WHEN tool_name LIKE 'subdomain%' OR tool_name LIKE 'tech_stack%' OR tool_name LIKE 'port_scan%' THEN 'recon'
+                WHEN tool_name LIKE 'sql_injection%' OR tool_name LIKE 'xss_%' THEN 'vuln_scan'
+                WHEN tool_name LIKE 'payload%' OR tool_name LIKE 'phishing%' THEN 'payload'
+                ELSE 'other'
+            END as category,
+            SUM(credits_used) as total_credits
+        FROM usage
+        WHERE created_at >= NOW() - (p_days || ' days')::INTERVAL
+        GROUP BY category
+    ) t;
+
+    RETURN COALESCE(v_result, '{}'::jsonb);
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get top tools by usage
+CREATE OR REPLACE FUNCTION get_top_tools(p_days INTEGER DEFAULT 30, p_limit INTEGER DEFAULT 10)
+RETURNS JSONB AS $$
+BEGIN
+    RETURN (
+        SELECT jsonb_agg(row_to_json(t))
+        FROM (
+            SELECT
+                tool_name as tool,
+                COUNT(*) as usage_count,
+                SUM(credits_used) as credits_used
+            FROM usage
+            WHERE created_at >= NOW() - (p_days || ' days')::INTERVAL
+            GROUP BY tool_name
+            ORDER BY credits_used DESC
+            LIMIT p_limit
+        ) t
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get daily usage stats
+CREATE OR REPLACE FUNCTION get_daily_usage_stats(p_days INTEGER DEFAULT 30)
+RETURNS JSONB AS $$
+BEGIN
+    RETURN (
+        SELECT jsonb_agg(row_to_json(t))
+        FROM (
+            SELECT
+                date_trunc('day', ug.created_at)::DATE as date,
+                SUM(ug.credits_used) as credits_used,
+                COUNT(DISTINCT ug.user_id) as active_users,
+                (SELECT COUNT(*) FROM users WHERE date_trunc('day', created_at)::DATE = date_trunc('day', ug.created_at)::DATE) as new_signups,
+                COALESCE((
+                    SELECT SUM(amount_cents)::NUMERIC / 100
+                    FROM transactions
+                    WHERE type = 'purchase'
+                    AND date_trunc('day', created_at)::DATE = date_trunc('day', ug.created_at)::DATE
+                ), 0) as revenue
+            FROM usage ug
+            WHERE ug.created_at >= NOW() - (p_days || ' days')::INTERVAL
+            GROUP BY date_trunc('day', ug.created_at)::DATE
+            ORDER BY date
+        ) t
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get recent signups
+CREATE OR REPLACE FUNCTION get_recent_signups(p_limit INTEGER DEFAULT 10)
+RETURNS JSONB AS $$
+BEGIN
+    RETURN (
+        SELECT jsonb_agg(row_to_json(t))
+        FROM (
+            SELECT
+                u.id,
+                u.email,
+                c.tier,
+                u.created_at as signed_up
+            FROM users u
+            JOIN credits c ON c.user_id = u.id
+            ORDER BY u.created_at DESC
+            LIMIT p_limit
+        ) t
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get top users by usage
+CREATE OR REPLACE FUNCTION get_top_users_by_usage(p_days INTEGER DEFAULT 30, p_limit INTEGER DEFAULT 10)
+RETURNS JSONB AS $$
+BEGIN
+    RETURN (
+        SELECT jsonb_agg(row_to_json(t))
+        FROM (
+            SELECT
+                u.id,
+                u.email,
+                c.tier,
+                SUM(ug.credits_used) as credits_used,
+                MAX(ug.created_at) as last_active
+            FROM users u
+            JOIN credits c ON c.user_id = u.id
+            JOIN usage ug ON ug.user_id = u.id
+            WHERE ug.created_at >= NOW() - (p_days || ' days')::INTERVAL
+            GROUP BY u.id, u.email, c.tier
+            ORDER BY credits_used DESC
+            LIMIT p_limit
+        ) t
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get system health
+CREATE OR REPLACE FUNCTION get_system_health()
+RETURNS JSONB AS $$
+DECLARE
+    v_result JSONB;
+BEGIN
+    SELECT jsonb_build_object(
+        'mcp_server_status', COALESCE(
+            (SELECT status FROM system_health_logs WHERE service_name = 'mcp_server' ORDER BY recorded_at DESC LIMIT 1),
+            'unknown'
+        ),
+        'mcp_server_latency_ms', COALESCE(
+            (SELECT latency_ms FROM system_health_logs WHERE service_name = 'mcp_server' ORDER BY recorded_at DESC LIMIT 1),
+            0
+        ),
+        'api_requests_24h', COALESCE(
+            (SELECT SUM(request_count) FROM system_health_logs WHERE service_name = 'api' AND recorded_at >= NOW() - INTERVAL '24 hours'),
+            0
+        ),
+        'api_errors_24h', COALESCE(
+            (SELECT SUM(error_count) FROM system_health_logs WHERE service_name = 'api' AND recorded_at >= NOW() - INTERVAL '24 hours'),
+            0
+        )
+    ) INTO v_result;
+
+    RETURN v_result;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get active alerts
+CREATE OR REPLACE FUNCTION get_active_alerts(p_limit INTEGER DEFAULT 10)
+RETURNS JSONB AS $$
+BEGIN
+    RETURN (
+        SELECT jsonb_agg(row_to_json(t))
+        FROM (
+            SELECT
+                level,
+                category,
+                title,
+                message,
+                created_at as timestamp
+            FROM admin_alerts
+            WHERE is_acknowledged = false
+            ORDER BY
+                CASE level
+                    WHEN 'critical' THEN 1
+                    WHEN 'error' THEN 2
+                    WHEN 'warning' THEN 3
+                    ELSE 4
+                END,
+                created_at DESC
+            LIMIT p_limit
+        ) t
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Get revenue by tier
+CREATE OR REPLACE FUNCTION get_revenue_by_tier(p_days INTEGER DEFAULT 30)
+RETURNS JSONB AS $$
+BEGIN
+    RETURN (
+        SELECT jsonb_object_agg(tier_type, revenue)
+        FROM (
+            SELECT
+                CASE
+                    WHEN c.tier = 'pro' THEN 'pro'
+                    WHEN c.tier = 'enterprise' THEN 'enterprise'
+                    ELSE 'credit_topups'
+                END as tier_type,
+                SUM(t.amount_cents)::NUMERIC / 100 as revenue
+            FROM transactions t
+            JOIN users u ON u.id = t.user_id
+            JOIN credits c ON c.user_id = u.id
+            WHERE t.type = 'purchase'
+            AND t.created_at >= NOW() - (p_days || ' days')::INTERVAL
+            GROUP BY tier_type
+        ) sub
+    );
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Aggregate daily stats (run as a cron job)
+CREATE OR REPLACE FUNCTION aggregate_daily_stats(p_date DATE DEFAULT CURRENT_DATE - 1)
+RETURNS VOID AS $$
+BEGIN
+    INSERT INTO daily_stats (
+        date,
+        total_users,
+        new_users,
+        active_users,
+        total_credits_used,
+        total_revenue_cents,
+        total_api_requests,
+        total_scans,
+        users_by_tier,
+        top_tools
+    )
+    VALUES (
+        p_date,
+        (SELECT COUNT(*) FROM users WHERE created_at::DATE <= p_date),
+        (SELECT COUNT(*) FROM users WHERE created_at::DATE = p_date),
+        (SELECT COUNT(DISTINCT user_id) FROM usage WHERE created_at::DATE = p_date),
+        (SELECT COALESCE(SUM(credits_used), 0) FROM usage WHERE created_at::DATE = p_date),
+        (SELECT COALESCE(SUM(amount_cents), 0) FROM transactions WHERE type = 'purchase' AND created_at::DATE = p_date),
+        (SELECT COALESCE(SUM(request_count), 0) FROM system_health_logs WHERE service_name = 'api' AND recorded_at::DATE = p_date),
+        (SELECT COUNT(*) FROM scans WHERE created_at::DATE = p_date),
+        (SELECT jsonb_object_agg(tier, cnt) FROM (SELECT tier, COUNT(*) as cnt FROM credits GROUP BY tier) t),
+        (SELECT jsonb_agg(row_to_json(t)) FROM (
+            SELECT tool_name as tool, COUNT(*) as usage_count, SUM(credits_used) as credits_used
+            FROM usage WHERE created_at::DATE = p_date
+            GROUP BY tool_name ORDER BY credits_used DESC LIMIT 10
+        ) t)
+    )
+    ON CONFLICT (date) DO UPDATE SET
+        total_users = EXCLUDED.total_users,
+        new_users = EXCLUDED.new_users,
+        active_users = EXCLUDED.active_users,
+        total_credits_used = EXCLUDED.total_credits_used,
+        total_revenue_cents = EXCLUDED.total_revenue_cents,
+        total_api_requests = EXCLUDED.total_api_requests,
+        total_scans = EXCLUDED.total_scans,
+        users_by_tier = EXCLUDED.users_by_tier,
+        top_tools = EXCLUDED.top_tools,
+        updated_at = NOW();
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Log system health
+CREATE OR REPLACE FUNCTION log_system_health(
+    p_service TEXT,
+    p_status TEXT,
+    p_latency_ms INTEGER DEFAULT NULL,
+    p_request_count INTEGER DEFAULT 0,
+    p_error_count INTEGER DEFAULT 0,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID AS $$
+DECLARE
+    v_id UUID;
+BEGIN
+    INSERT INTO system_health_logs (
+        service_name, status, latency_ms, request_count, error_count, metadata
+    )
+    VALUES (
+        p_service, p_status, p_latency_ms, p_request_count, p_error_count, p_metadata
+    )
+    RETURNING id INTO v_id;
+
+    -- Create alert if unhealthy
+    IF p_status = 'unhealthy' THEN
+        INSERT INTO admin_alerts (level, category, title, message, metadata)
+        VALUES (
+            'error',
+            'system',
+            p_service || ' service unhealthy',
+            'The ' || p_service || ' service has reported an unhealthy status.',
+            jsonb_build_object('service', p_service, 'health_log_id', v_id)
+        );
+    END IF;
+
+    RETURN v_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Create admin alert
+CREATE OR REPLACE FUNCTION create_admin_alert(
+    p_level TEXT,
+    p_category TEXT,
+    p_title TEXT,
+    p_message TEXT,
+    p_metadata JSONB DEFAULT '{}'::jsonb
+)
+RETURNS UUID AS $$
+DECLARE
+    v_id UUID;
+BEGIN
+    INSERT INTO admin_alerts (level, category, title, message, metadata)
+    VALUES (p_level, p_category, p_title, p_message, p_metadata)
+    RETURNING id INTO v_id;
+
+    RETURN v_id;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- Function: Acknowledge alert
+CREATE OR REPLACE FUNCTION acknowledge_alert(p_alert_id UUID, p_admin_id UUID)
+RETURNS BOOLEAN AS $$
+BEGIN
+    UPDATE admin_alerts
+    SET
+        is_acknowledged = true,
+        acknowledged_by = p_admin_id,
+        acknowledged_at = NOW()
+    WHERE id = p_alert_id;
+
+    RETURN FOUND;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+-- ============================================================================
+-- ADMIN RLS POLICIES
+-- ============================================================================
+
+ALTER TABLE admin_users ENABLE ROW LEVEL SECURITY;
+ALTER TABLE system_health_logs ENABLE ROW LEVEL SECURITY;
+ALTER TABLE admin_alerts ENABLE ROW LEVEL SECURITY;
+ALTER TABLE scans ENABLE ROW LEVEL SECURITY;
+ALTER TABLE daily_stats ENABLE ROW LEVEL SECURITY;
+
+-- Admin users: Only admins can view admin list
+CREATE POLICY admin_users_select ON admin_users
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM admin_users au
+            JOIN users u ON u.id = au.user_id
+            WHERE u.clerk_id = auth.uid()::text
+        )
+    );
+
+-- System health: Only admins can view
+CREATE POLICY system_health_select ON system_health_logs
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM admin_users au
+            JOIN users u ON u.id = au.user_id
+            WHERE u.clerk_id = auth.uid()::text
+        )
+    );
+
+-- Admin alerts: Only admins can view
+CREATE POLICY admin_alerts_select ON admin_alerts
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM admin_users au
+            JOIN users u ON u.id = au.user_id
+            WHERE u.clerk_id = auth.uid()::text
+        )
+    );
+
+-- Scans: Users can see their own scans
+CREATE POLICY scans_select_own ON scans
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = scans.user_id
+            AND users.clerk_id = auth.uid()::text
+        )
+    );
+
+-- Scans: Users can insert their own scans
+CREATE POLICY scans_insert_own ON scans
+    FOR INSERT
+    WITH CHECK (
+        EXISTS (
+            SELECT 1 FROM users
+            WHERE users.id = scans.user_id
+            AND users.clerk_id = auth.uid()::text
+        )
+    );
+
+-- Daily stats: Only admins can view
+CREATE POLICY daily_stats_select ON daily_stats
+    FOR SELECT
+    USING (
+        EXISTS (
+            SELECT 1 FROM admin_users au
+            JOIN users u ON u.id = au.user_id
+            WHERE u.clerk_id = auth.uid()::text
+        )
+    );
+
+-- Service role policies for admin tables
+CREATE POLICY admin_users_service_role ON admin_users FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY system_health_service_role ON system_health_logs FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY admin_alerts_service_role ON admin_alerts FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY scans_service_role ON scans FOR ALL USING (auth.role() = 'service_role');
+CREATE POLICY daily_stats_service_role ON daily_stats FOR ALL USING (auth.role() = 'service_role');
+
+-- ============================================================================
+-- ADMIN VIEWS
+-- ============================================================================
+
+-- View: Admin dashboard overview
+CREATE OR REPLACE VIEW admin_dashboard_overview AS
+SELECT
+    (SELECT COUNT(*) FROM users) as total_users,
+    (SELECT COUNT(DISTINCT user_id) FROM usage WHERE created_at >= NOW() - INTERVAL '30 days') as active_users_30d,
+    (SELECT COUNT(*) FROM users WHERE created_at >= NOW() - INTERVAL '30 days') as new_users_30d,
+    (SELECT COALESCE(SUM(credits_used), 0) FROM usage) as total_credits_used,
+    (SELECT COALESCE(SUM(amount_cents), 0)::NUMERIC / 100 FROM transactions WHERE type = 'purchase') as total_revenue,
+    (SELECT COUNT(*) FROM scans WHERE status = 'running') as active_operations;
+
+-- View: Tool usage summary
+CREATE OR REPLACE VIEW tool_usage_summary AS
+SELECT
+    tool_name,
+    COUNT(*) as usage_count,
+    SUM(credits_used) as total_credits,
+    COUNT(DISTINCT user_id) as unique_users,
+    MAX(created_at) as last_used
+FROM usage
+GROUP BY tool_name
+ORDER BY total_credits DESC;
+
+-- View: User engagement metrics
+CREATE OR REPLACE VIEW user_engagement_metrics AS
+SELECT
+    u.id as user_id,
+    u.email,
+    c.tier,
+    c.balance as current_credits,
+    COALESCE(SUM(ug.credits_used), 0) as total_credits_used,
+    COUNT(DISTINCT DATE(ug.created_at)) as active_days,
+    MAX(ug.created_at) as last_active,
+    u.created_at as signed_up
+FROM users u
+JOIN credits c ON c.user_id = u.id
+LEFT JOIN usage ug ON ug.user_id = u.id
+GROUP BY u.id, u.email, c.tier, c.balance, u.created_at
+ORDER BY total_credits_used DESC;
+
+-- ============================================================================
+-- TRIGGERS FOR ADMIN TABLES
+-- ============================================================================
+
+-- Trigger: Auto-update updated_at on admin_users
+DROP TRIGGER IF EXISTS update_admin_users_updated_at ON admin_users;
+CREATE TRIGGER update_admin_users_updated_at
+    BEFORE UPDATE ON admin_users
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- Trigger: Auto-update updated_at on daily_stats
+DROP TRIGGER IF EXISTS update_daily_stats_updated_at ON daily_stats;
+CREATE TRIGGER update_daily_stats_updated_at
+    BEFORE UPDATE ON daily_stats
+    FOR EACH ROW
+    EXECUTE FUNCTION update_updated_at_column();
+
+-- ============================================================================
+-- UPDATE SCHEMA VERSION
+-- ============================================================================
+
+INSERT INTO schema_migrations (version, description)
+VALUES (2, 'Admin dashboard tables - admin_users, system_health_logs, admin_alerts, scans, daily_stats')
+ON CONFLICT (version) DO NOTHING;
+
+-- ============================================================================
 -- NOTES
 -- ============================================================================
 --
