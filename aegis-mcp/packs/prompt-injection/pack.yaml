@@ -1,0 +1,65 @@
+# Aegis Test Pack: Prompt Injection & Indirect Injection
+# Version: 1.0.0
+# Author: Aegis Security Team
+
+name: prompt-injection
+version: "1.0.0"
+description: |
+  Comprehensive prompt injection testing pack for AI systems.
+  Tests for direct prompt injection, indirect injection via documents/URLs,
+  jailbreak attempts, and instruction override attacks.
+
+author: Aegis Security Team
+license: Apache-2.0
+
+# Target types this pack supports
+supported_targets:
+  - llm-api
+  - chat-api
+  - agent
+
+# Required capabilities
+requires:
+  - text-input
+  - text-output
+
+# Test suites included in this pack
+test_suites:
+  - file: tests/direct-injection.yaml
+    name: Direct Prompt Injection
+    description: Direct attempts to override system instructions
+
+  - file: tests/indirect-injection.yaml
+    name: Indirect Prompt Injection
+    description: Injection via documents, URLs, and external content
+
+  - file: tests/jailbreak.yaml
+    name: Jailbreak Attempts
+    description: Role-play and persona-based bypass attempts
+
+  - file: tests/instruction-override.yaml
+    name: Instruction Override
+    description: Attempts to modify or ignore system instructions
+
+# Executor configuration
+executor: prompt-executor
+executor_config:
+  max_tokens: 1024
+  temperature: 0.7
+  timeout_ms: 30000
+
+# Severity classification
+severity_mapping:
+  instruction_bypass: critical
+  data_exfiltration: critical
+  role_escape: high
+  partial_bypass: medium
+  information_leak: medium
+  behavior_modification: low
+
+# Tags for filtering
+tags:
+  - prompt-injection
+  - llm-security
+  - red-team
+  - owasp-llm
