@@ -3,10 +3,10 @@ import { auth } from '@clerk/nextjs/server';
 import { getUserByClerkId, logUsage, updateUserCredits } from '@/lib/supabase';
 import { getCreditCost } from '@/lib/credits';
 
-// This is a proxy endpoint to the NightOwl MCP server
+// This is a proxy endpoint to the Aegis MCP server
 // It handles credit deduction and usage logging
 
-const MCP_BASE_URL = process.env.NIGHTOWL_MCP_URL || 'http://localhost:8000';
+const MCP_BASE_URL = process.env.AEGIS_MCP_URL || 'http://localhost:8080';
 
 export async function POST(
   req: NextRequest,
@@ -46,7 +46,7 @@ export async function POST(
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        Authorization: `Bearer ${process.env.NIGHTOWL_MCP_API_KEY}`,
+        'X-API-Key': process.env.AEGIS_MCP_API_KEY || '',
       },
       body: JSON.stringify(body),
     });

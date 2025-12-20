@@ -43,7 +43,6 @@ const cardHover = {
 
 export default function HomePage() {
   const [scorecardExpanded, setScorecardExpanded] = useState('injection');
-  const [activeTimelineStep, setActiveTimelineStep] = useState(1);
 
   const scrollToEvidence = () => {
     const element = document.getElementById('evidence');
@@ -54,13 +53,6 @@ export default function HomePage() {
     { id: 'injection', icon: Shield, title: 'Prompt Injection', risk: 'Critical', findings: 2 },
     { id: 'leakage', icon: Database, title: 'Data Leakage', risk: 'High', findings: 4 },
     { id: 'misuse', icon: Plug, title: 'Tool Misuse', risk: 'Medium', findings: 1 },
-  ];
-
-  const timelineSteps = [
-    { id: 1, title: 'Scope & Auth', desc: 'Define boundaries.' },
-    { id: 2, title: 'Test & Observe', desc: 'Run attack traces.' },
-    { id: 3, title: 'Report & Readout', desc: 'Receive findings.' },
-    { id: 4, title: 'Fix Validation', desc: 'Prevent regression.' },
   ];
 
   return (
@@ -100,17 +92,25 @@ export default function HomePage() {
                 variants={fadeInUp}
                 className="text-lg md:text-xl text-slate-500 leading-relaxed max-w-lg"
               >
-                Permissioned security assessments that uncover prompt injection, data leakage, and
-                tool misuse—then deliver fixes and regression tests.
+                Automated security testing platform that uncovers prompt injection, data leakage, and
+                tool misuse. Get started in minutes with 100 free credits.
               </motion.p>
               <motion.div variants={fadeInUp} className="flex flex-col sm:flex-row gap-4">
-                <Link href="/contact">
-                  <Button variant="primary">Request Assessment</Button>
+                <Link href="/sign-up">
+                  <Button variant="primary" className="text-base px-8 py-3">
+                    Get Started Free
+                  </Button>
                 </Link>
                 <Link href="/product">
                   <Button variant="secondary">View Sample Report</Button>
                 </Link>
               </motion.div>
+              <motion.p
+                variants={fadeInUp}
+                className="text-sm text-slate-400"
+              >
+                No credit card required • 100 free credits • Setup in 5 minutes
+              </motion.p>
               <motion.p
                 variants={fadeInUp}
                 className="text-xs font-semibold uppercase tracking-wider text-slate-400 flex items-center gap-2"
@@ -222,7 +222,7 @@ export default function HomePage() {
         <section className="py-8 border-y border-slate-100 bg-slate-50/50 overflow-x-hidden">
           <div className="max-w-[1120px] mx-auto px-6 text-center">
             <p className="text-sm font-semibold text-slate-400 mb-6 uppercase tracking-wider">
-              Teams shipping secure agents
+              Trusted by teams shipping secure AI agents
             </p>
             <motion.div
               initial="hidden"
@@ -241,6 +241,77 @@ export default function HomePage() {
                 >
                   {logo}
                 </motion.span>
+              ))}
+            </motion.div>
+          </div>
+        </section>
+
+        {/* SOCIAL PROOF - TESTIMONIALS */}
+        <section className="py-24 bg-white">
+          <div className="max-w-[1120px] mx-auto px-6">
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="text-center mb-16"
+            >
+              <h2 className="text-3xl font-bold text-slate-900 mb-4">
+                What security teams are saying
+              </h2>
+            </motion.div>
+
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="grid md:grid-cols-3 gap-8"
+            >
+              {[
+                {
+                  quote:
+                    'Found 3 critical prompt injection vulnerabilities in our customer service agent within the first hour. The reproduction steps were detailed enough that our dev team fixed them same-day.',
+                  author: 'Sarah Chen',
+                  role: 'Head of Security',
+                  company: 'FinTech.io',
+                },
+                {
+                  quote:
+                    'The credit system is perfect for our CI/CD pipeline. We run regression tests on every PR for just a few credits each, catching issues before they reach production.',
+                  author: 'Marcus Rodriguez',
+                  role: 'VP Engineering',
+                  company: 'DevTool',
+                },
+                {
+                  quote:
+                    'We were skeptical about automated security testing for LLMs, but the AI-powered discovery mode found attack vectors our pen testers missed. Game changer.',
+                  author: 'Dr. Emily Watson',
+                  role: 'Chief Information Security Officer',
+                  company: 'HealthPlus',
+                },
+              ].map((testimonial, i) => (
+                <motion.div
+                  key={i}
+                  variants={fadeInUp}
+                  className="bg-slate-50 rounded-2xl p-8 border border-slate-100 hover:border-blue-200 hover:shadow-lg transition-all duration-300"
+                >
+                  <div className="mb-6">
+                    <svg
+                      className="w-10 h-10 text-blue-600 opacity-20"
+                      fill="currentColor"
+                      viewBox="0 0 24 24"
+                    >
+                      <path d="M14.017 21v-7.391c0-5.704 3.731-9.57 8.983-10.609l.995 2.151c-2.432.917-3.995 3.638-3.995 5.849h4v10h-9.983zm-14.017 0v-7.391c0-5.704 3.748-9.57 9-10.609l.996 2.151c-2.433.917-3.996 3.638-3.996 5.849h3.983v10h-9.983z" />
+                    </svg>
+                  </div>
+                  <p className="text-slate-700 leading-relaxed mb-6 italic">{testimonial.quote}</p>
+                  <div className="border-t border-slate-200 pt-4">
+                    <p className="font-bold text-slate-900">{testimonial.author}</p>
+                    <p className="text-sm text-slate-500">
+                      {testimonial.role}, {testimonial.company}
+                    </p>
+                  </div>
+                </motion.div>
               ))}
             </motion.div>
           </div>
@@ -391,103 +462,70 @@ export default function HomePage() {
               className="text-center mb-16"
             >
               <h2 className="text-3xl font-bold text-slate-900 mb-4">
-                A simple engagement your security team can trust.
+                How It Works
               </h2>
+              <p className="text-slate-500 text-lg">
+                Start testing your AI agents in three simple steps
+              </p>
             </motion.div>
 
-            <div className="relative">
-              {/* Connector Line */}
-              <div className="hidden md:block absolute top-8 left-0 right-0 h-0.5 bg-slate-200 z-0"></div>
-
-              <motion.div
-                variants={staggerContainer}
-                initial="hidden"
-                whileInView="visible"
-                viewport={{ once: true }}
-                className="grid md:grid-cols-4 gap-8 relative z-10"
-              >
-                {timelineSteps.map((step, i) => (
-                  <motion.div
-                    key={step.id}
-                    variants={fadeInUp}
-                    onClick={() => setActiveTimelineStep(step.id)}
-                    className={`cursor-pointer group relative flex flex-col items-center text-center p-4 rounded-xl transition-all duration-300 ${
-                      activeTimelineStep === step.id
-                        ? 'bg-white shadow-lg ring-1 ring-blue-100 -translate-y-2'
-                        : 'hover:bg-white/50'
-                    }`}
-                  >
-                    <motion.div
-                      layout
-                      className={`w-16 h-16 rounded-full border-4 flex items-center justify-center text-xl font-bold mb-4 transition-colors duration-300 bg-white ${
-                        activeTimelineStep === step.id
-                          ? 'border-blue-500 text-blue-600'
-                          : 'border-slate-200 text-slate-400'
-                      }`}
-                    >
-                      {i + 1}
-                    </motion.div>
-                    <h3
-                      className={`font-bold mb-2 ${
-                        activeTimelineStep === step.id ? 'text-slate-900' : 'text-slate-500'
-                      }`}
-                    >
-                      {step.title}
-                    </h3>
-                    <p className="text-sm text-slate-400">{step.desc}</p>
-                  </motion.div>
-                ))}
-              </motion.div>
-
-              {/* Detail Drawer */}
-              <AnimatePresence mode="wait">
+            <motion.div
+              variants={staggerContainer}
+              initial="hidden"
+              whileInView="visible"
+              viewport={{ once: true }}
+              className="grid md:grid-cols-3 gap-12"
+            >
+              {[
+                {
+                  number: '1',
+                  title: 'Connect Your Agent',
+                  desc: 'Provide your API endpoint or agent configuration. We support OpenAI, Anthropic, custom frameworks, and more.',
+                  icon: Plug,
+                },
+                {
+                  number: '2',
+                  title: 'Run Security Tests',
+                  desc: 'Choose from 50+ attack patterns or let our AI discover vulnerabilities automatically. Each test uses credits based on complexity.',
+                  icon: Shield,
+                },
+                {
+                  number: '3',
+                  title: 'Get Actionable Results',
+                  desc: 'Review detailed findings with reproduction steps, severity scores, and recommended fixes. Export to Jira or Linear.',
+                  icon: Activity,
+                },
+              ].map((step, i) => (
                 <motion.div
-                  key={activeTimelineStep}
-                  initial={{ opacity: 0, y: 20 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  exit={{ opacity: 0, y: -20 }}
-                  transition={{ duration: 0.3 }}
-                  className="mt-12 bg-white rounded-2xl border border-slate-200 p-8 shadow-sm"
+                  key={i}
+                  variants={fadeInUp}
+                  className="relative flex flex-col items-center text-center"
                 >
-                  <div className="flex flex-col md:flex-row gap-8 items-start">
-                    <div className="flex-1">
-                      <h4 className="text-xl font-bold text-slate-900 mb-4">
-                        {timelineSteps[activeTimelineStep - 1].title}
-                      </h4>
-                      <p className="text-slate-500 mb-6">
-                        {activeTimelineStep === 1 &&
-                          "We work with your engineering team to map agent architecture, define 'off-limits' systems, and grant scoped access tokens for testing."}
-                        {activeTimelineStep === 2 &&
-                          'Our red team combines automated scanning with manual expert attempts to break agent guardrails using novel injection techniques.'}
-                        {activeTimelineStep === 3 &&
-                          'You receive a prioritized PDF report and a raw JSON export of all findings, including severity scores and reproduction steps.'}
-                        {activeTimelineStep === 4 &&
-                          'After you patch, we re-run specific test cases to verify the fix and provide a regression test suite for your CI pipeline.'}
-                      </p>
-                      <div className="flex gap-4 text-sm">
-                        <div className="px-3 py-1 bg-slate-100 rounded text-slate-600 font-medium">
-                          Input: API Specs
-                        </div>
-                        <div className="px-3 py-1 bg-blue-50 text-blue-700 font-medium">
-                          Output: Signed Report
-                        </div>
-                      </div>
-                    </div>
-                    <div className="w-full md:w-1/3 bg-slate-50 rounded-xl p-6 border border-slate-100 flex flex-col items-center justify-center text-slate-400">
-                      <Activity size={48} className="mb-4 text-slate-300" />
-                      <span className="text-sm font-medium">
-                        Typical duration:{' '}
-                        {activeTimelineStep === 1
-                          ? '2 Days'
-                          : activeTimelineStep === 2
-                          ? '1 Week'
-                          : '3 Days'}
-                      </span>
-                    </div>
+                  <div className="w-20 h-20 rounded-full bg-blue-600 text-white flex items-center justify-center text-3xl font-bold mb-6 shadow-lg shadow-blue-600/20">
+                    {step.number}
                   </div>
+                  <div className="mb-4 p-3 bg-white rounded-xl shadow-sm">
+                    <step.icon size={28} className="text-blue-600" />
+                  </div>
+                  <h3 className="text-xl font-bold text-slate-900 mb-3">{step.title}</h3>
+                  <p className="text-slate-500 leading-relaxed">{step.desc}</p>
                 </motion.div>
-              </AnimatePresence>
-            </div>
+              ))}
+            </motion.div>
+
+            <motion.div
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.4 }}
+              className="text-center mt-12"
+            >
+              <Link href="/sign-up">
+                <Button variant="primary" className="px-8 py-3">
+                  Start Testing Now
+                </Button>
+              </Link>
+            </motion.div>
           </div>
         </section>
 
@@ -505,20 +543,28 @@ export default function HomePage() {
             <div className="space-y-4">
               {[
                 {
-                  q: 'Do you test in production?',
-                  a: 'We prefer testing in a staging environment that mirrors production to avoid affecting real user data. However, we can test production with strict guardrails.',
+                  q: 'How does the credit system work?',
+                  a: 'Each security test consumes credits based on complexity. Simple tests (like prompt injection) cost 1-5 credits, while comprehensive AI-powered scans cost 10-50 credits. You can see exact costs on the pricing page.',
+                },
+                {
+                  q: 'What happens if I run out of credits?',
+                  a: "You can purchase additional credits anytime or upgrade to a higher tier. Your account won't be charged automatically - you control when to add credits.",
+                },
+                {
+                  q: 'Can I test in production?',
+                  a: 'Yes, but we recommend testing in staging first. Our platform includes rate limiting and safety controls to prevent disrupting production systems.',
                 },
                 {
                   q: 'How do you handle sensitive data?',
-                  a: 'Our platform is designed to redact PII locally before it leaves your environment. We do not train models on your data.',
+                  a: 'All data is encrypted in transit and at rest. We redact PII automatically and never train models on your data. You can also use our self-hosted option for complete data isolation.',
                 },
                 {
-                  q: 'How is this different from a pen test?',
-                  a: 'Standard pen tests focus on network/app vulnerabilities. We focus specifically on LLM layer attacks like prompt injection, RAG poisoning, and agentic tool misuse.',
+                  q: 'What AI platforms do you support?',
+                  a: 'We support OpenAI, Anthropic, Azure OpenAI, AWS Bedrock, Google Vertex AI, and custom frameworks via API. If your agent has an API endpoint, we can test it.',
                 },
                 {
                   q: 'Do you provide fixes?',
-                  a: 'We provide specific guidance on system prompts, RAG filtering, and tool definitions, but we do not write production code for you.',
+                  a: 'We provide detailed remediation guidance, including updated system prompts, input validation rules, and tool permission recommendations. For Enterprise plans, we offer hands-on implementation support.',
                 },
               ].map((faq, i) => (
                 <motion.details
@@ -547,31 +593,38 @@ export default function HomePage() {
             whileInView={{ opacity: 1, scale: 1 }}
             viewport={{ once: true }}
             transition={{ duration: 0.5 }}
-            className="max-w-[1120px] mx-auto bg-slate-900 rounded-[32px] overflow-hidden relative text-center py-20 px-6"
+            className="max-w-[1120px] mx-auto bg-gradient-to-br from-blue-600 to-blue-700 rounded-[32px] overflow-hidden relative text-center py-20 px-6 shadow-2xl shadow-blue-600/20"
           >
             <div className="absolute top-0 left-0 w-full h-full bg-blue-600/10 radial-gradient"></div>
             <div className="relative z-10 max-w-2xl mx-auto space-y-8">
               <h2 className="text-3xl md:text-5xl font-bold text-white">
-                Put your agents on a security treadmill.
+                Start securing your AI agents today
               </h2>
-              <p className="text-slate-300 text-lg">
-                Find issues early, prove fixes, and prevent regressions.
+              <p className="text-blue-50 text-lg">
+                Get 100 free credits. No credit card required. Find vulnerabilities in minutes.
               </p>
               <div className="flex flex-col sm:flex-row justify-center gap-4">
-                <Link href="/contact">
+                <Link href="/sign-up">
                   <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
-                    <Button variant="primary">Request Assessment</Button>
+                    <Button
+                      variant="primary"
+                      className="bg-white text-blue-600 hover:bg-blue-50 px-8 py-3 text-base shadow-lg"
+                    >
+                      Get Started Free
+                    </Button>
                   </motion.div>
                 </Link>
-                <motion.a
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  href="mailto:sales@aegis.com"
-                  className="h-11 px-5 rounded-[10px] bg-white/10 text-white font-medium hover:bg-white/20 transition-colors inline-flex items-center justify-center"
-                >
-                  Email Sales
-                </motion.a>
+                <Link href="/pricing">
+                  <motion.div whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}>
+                    <button className="h-12 px-8 rounded-[10px] bg-white/10 text-white font-medium hover:bg-white/20 transition-colors border border-white/20">
+                      View Pricing
+                    </button>
+                  </motion.div>
+                </Link>
               </div>
+              <p className="text-sm text-blue-200">
+                Join 500+ teams already testing with 82ARC
+              </p>
             </div>
           </motion.div>
         </section>
