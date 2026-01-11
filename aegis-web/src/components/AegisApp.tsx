@@ -44,15 +44,20 @@ import {
 } from 'lucide-react';
 
 // Security imports
-import { SecurityProvider, useSecurity, RoleGate } from '../contexts/SecurityContext';
+import { useSecurity, useCsrf, RoleGate } from '../contexts/SecurityContext';
 import { auditLogger } from '../services/AuditLogger';
-import {
+import InputSanitizer, {
   sanitizeText,
   sanitizeEmail,
   sanitizeName,
   sanitizeMessage,
+  sanitizeUrl,
+  sanitizeHtml,
   isRateLimited,
-  checkHoneypot
+  checkHoneypot,
+  initCsrfToken,
+  getCsrfToken,
+  validateCsrfToken
 } from '../services/InputSanitizer';
 
 // ==================== ERROR BOUNDARY ====================
@@ -78,11 +83,11 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
   }
 
   componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
-    // Log to error reporting service in production (not console)
-    if (process.env.NODE_ENV === 'production') {
-      // Send to error tracking service like Sentry
-      // errorTrackingService.captureException(error, { extra: errorInfo });
-    }
+    // Log to audit logger for compliance and error tracking
+    auditLogger.logError(error, 'ui:error-boundary', {
+      componentStack: errorInfo.componentStack,
+      errorBoundary: true
+    });
   }
 
   handleReset = (): void => {
@@ -123,25 +128,8 @@ class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
 }
 
 // ==================== INPUT VALIDATION ====================
-
-const sanitizeInput = (input: string): string => {
-  // Remove potential XSS vectors
-  return input
-    .replace(/[<>]/g, '') // Remove angle brackets
-    .replace(/javascript:/gi, '') // Remove javascript: protocol
-    .replace(/on\w+=/gi, '') // Remove event handlers
-    .trim()
-    .slice(0, 1000); // Limit length
-};
-
-const validateEmail = (email: string): boolean => {
-  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-  return emailRegex.test(email) && email.length <= 254;
-};
-
-const validateName = (name: string): boolean => {
-  return name.length >= 2 && name.length <= 100 && /^[a-zA-Z\s\-']+$/.test(name);
-};
+// All input validation and sanitization is handled by InputSanitizer service
+// which provides DOMPurify-based XSS protection and validator.js validation
 
 // ==================== TAILWIND COLOR MAPPING ====================
 // Static class mapping to ensure JIT compilation works correctly
@@ -1181,7 +1169,7 @@ const AttackSimulation: React.FC = () => {
               </motion.div>
             </div>
             <div className="mt-4 text-center text-xs text-purple-300">
-              Success Rate: 80-90% on GPT-4 (AdvBench)
+              Research (2023): 80-90% on GPT-4 | Current (2025): 15-35% with Constitutional AI
             </div>
           </div>
         )}
@@ -2003,42 +1991,38 @@ const AegisApp: React.FC = () => {
   // ==================== CONTACT PAGE ====================
 
   const ContactPage = () => {
+    const { getCsrfToken } = useSecurity();
+
     const [formData, setFormData] = useState({
       name: '',
       email: '',
       company: '',
       message: '',
+      honeypot: '', // Honeypot field for bot detection
     });
 
     const [errors, setErrors] = useState<Record<string, string>>({});
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [submitSuccess, setSubmitSuccess] = useState(false);
+    const [isRateLimitedState, setIsRateLimitedState] = useState(false);
 
     const validateForm = (): boolean => {
       const newErrors: Record<string, string> = {};
 
-      // Validate name
-      const sanitizedName = sanitizeInput(formData.name);
-      if (!sanitizedName) {
-        newErrors.name = 'Name is required';
-      } else if (!validateName(sanitizedName)) {
-        newErrors.name = 'Please enter a valid name (2-100 characters, letters only)';
+      // Use InputSanitizer service for validation
+      const nameResult = sanitizeName(formData.name);
+      if (!nameResult.isValid) {
+        newErrors.name = nameResult.errors[0] || 'Please enter a valid name';
       }
 
-      // Validate email
-      const sanitizedEmail = sanitizeInput(formData.email);
-      if (!sanitizedEmail) {
-        newErrors.email = 'Email is required';
-      } else if (!validateEmail(sanitizedEmail)) {
-        newErrors.email = 'Please enter a valid email address';
+      const emailResult = sanitizeEmail(formData.email);
+      if (!emailResult.isValid) {
+        newErrors.email = emailResult.errors[0] || 'Please enter a valid email address';
       }
 
-      // Validate message
-      const sanitizedMessage = sanitizeInput(formData.message);
-      if (!sanitizedMessage) {
-        newErrors.message = 'Message is required';
-      } else if (sanitizedMessage.length < 10) {
-        newErrors.message = 'Message must be at least 10 characters';
+      const messageResult = sanitizeMessage(formData.message, { minLength: 10, maxLength: 1000 });
+      if (!messageResult.isValid) {
+        newErrors.message = messageResult.errors[0] || 'Please enter a valid message';
       }
 
       setErrors(newErrors);
@@ -2048,7 +2032,8 @@ const AegisApp: React.FC = () => {
     const handleInputChange = (field: string) => (
       e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
     ) => {
-      const sanitizedValue = sanitizeInput(e.target.value);
+      // Use DOMPurify-based sanitizeText for real-time sanitization
+      const sanitizedValue = sanitizeText(e.target.value, { maxLength: field === 'message' ? 1000 : 254 });
       setFormData({ ...formData, [field]: sanitizedValue });
       // Clear error when user starts typing
       if (errors[field]) {
@@ -2059,30 +2044,81 @@ const AegisApp: React.FC = () => {
     const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
 
+      // Check honeypot (should be empty for real users)
+      if (!checkHoneypot(formData.honeypot)) {
+        // Bot detected - silently fail
+        auditLogger.logSecurityEvent('SECURITY_SUSPICIOUS_ACTIVITY', 'contact:form', 'failure', {
+          reason: 'Honeypot field populated',
+          suspectedBot: true
+        });
+        setSubmitSuccess(true); // Fake success to not tip off bots
+        return;
+      }
+
+      // Check rate limiting (5 submissions per 10 minutes)
+      const rateLimitResult = isRateLimited('contact:form', 5, 10 * 60 * 1000);
+      if (rateLimitResult.limited) {
+        auditLogger.logSecurityEvent('SECURITY_RATE_LIMIT_EXCEEDED', 'contact:form', 'failure', {
+          resetIn: rateLimitResult.resetIn
+        });
+        setIsRateLimitedState(true);
+        setErrors({ submit: `Too many submissions. Please try again in ${Math.ceil(rateLimitResult.resetIn / 60000)} minutes.` });
+        return;
+      }
+
       if (!validateForm()) {
+        auditLogger.log('SECURITY_INPUT_VALIDATION_FAILED', 'contact:form', 'failure', {
+          fields: Object.keys(errors)
+        });
         return;
       }
 
       setIsSubmitting(true);
 
-      // Sanitize all data before submission
+      // Get sanitized data using InputSanitizer service
+      const nameResult = sanitizeName(formData.name);
+      const emailResult = sanitizeEmail(formData.email);
+      const companyResult = sanitizeText(formData.company, { maxLength: 100 });
+      const messageResult = sanitizeMessage(formData.message, { minLength: 10, maxLength: 1000 });
+
       const sanitizedData = {
-        name: sanitizeInput(formData.name),
-        email: sanitizeInput(formData.email),
-        company: sanitizeInput(formData.company),
-        message: sanitizeInput(formData.message),
+        name: nameResult.sanitizedValue,
+        email: emailResult.sanitizedValue,
+        company: companyResult,
+        message: messageResult.sanitizedValue,
+        csrfToken: getCsrfToken(), // Include CSRF token
       };
 
       try {
-        // In production, send to secure API endpoint
-        // await fetch('/api/contact', { method: 'POST', body: JSON.stringify(sanitizedData) });
+        // Log form submission attempt
+        auditLogger.log('USER_FORM_SUBMISSION', 'contact:form', 'pending', {
+          hasName: !!sanitizedData.name,
+          hasEmail: !!sanitizedData.email,
+          hasCompany: !!sanitizedData.company,
+          messageLength: sanitizedData.message.length
+        });
+
+        // In production, send to secure API endpoint with CSRF validation
+        // await fetch('/api/contact', {
+        //   method: 'POST',
+        //   headers: {
+        //     'Content-Type': 'application/json',
+        //     'X-CSRF-Token': sanitizedData.csrfToken
+        //   },
+        //   body: JSON.stringify(sanitizedData)
+        // });
 
         // Simulate API call
         await new Promise(resolve => setTimeout(resolve, 1000));
 
+        auditLogger.log('USER_FORM_SUBMISSION', 'contact:form', 'success', {
+          email: emailResult.sanitizedValue // PII will be auto-masked by audit logger
+        });
+
         setSubmitSuccess(true);
-        setFormData({ name: '', email: '', company: '', message: '' });
-      } catch {
+        setFormData({ name: '', email: '', company: '', message: '', honeypot: '' });
+      } catch (error) {
+        auditLogger.logError(error as Error, 'contact:form', { action: 'submit' });
         setErrors({ submit: 'Failed to send message. Please try again.' });
       } finally {
         setIsSubmitting(false);
@@ -2122,6 +2158,23 @@ const AegisApp: React.FC = () => {
                 </div>
               ) : (
                 <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+                  {/* Hidden CSRF token field */}
+                  <input type="hidden" name="_csrf" value={getCsrfToken()} />
+
+                  {/* Honeypot field - hidden from real users, visible to bots */}
+                  <div className="absolute left-[-9999px]" aria-hidden="true">
+                    <label htmlFor="website">Website</label>
+                    <input
+                      type="text"
+                      id="website"
+                      name="website"
+                      value={formData.honeypot}
+                      onChange={(e) => setFormData({ ...formData, honeypot: e.target.value })}
+                      tabIndex={-1}
+                      autoComplete="off"
+                    />
+                  </div>
+
                   <div>
                     <label className="block text-gray-300 mb-2 font-semibold">Name</label>
                     <input
