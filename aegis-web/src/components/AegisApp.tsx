@@ -1,4 +1,4 @@
-import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
+import React, { useState, useEffect, useCallback, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -33,7 +33,27 @@ import {
   Linkedin,
   Twitter,
   Github,
+  TreePine,
+  Languages,
+  KeyRound,
+  Type,
+  ScrollText,
+  Users,
+  Fingerprint,
+  Brain,
 } from 'lucide-react';
+
+// Security imports
+import { SecurityProvider, useSecurity, RoleGate } from '../contexts/SecurityContext';
+import { auditLogger } from '../services/AuditLogger';
+import {
+  sanitizeText,
+  sanitizeEmail,
+  sanitizeName,
+  sanitizeMessage,
+  isRateLimited,
+  checkHoneypot
+} from '../services/InputSanitizer';
 
 // ==================== ERROR BOUNDARY ====================
 
@@ -177,7 +197,13 @@ interface AttackStep {
   timestamp?: number;
 }
 
-type AttackType = 'reconstruction' | 'obfuscation' | 'multiturn' | 'combined' | 'gcg' | 'pair' | 'autodan' | 'rag_poison' | 'indirect';
+type AttackType =
+  // Classic CC++ Methods
+  | 'reconstruction' | 'obfuscation' | 'multiturn' | 'combined'
+  // Modern Methods (2024)
+  | 'gcg' | 'pair' | 'autodan' | 'rag_poison' | 'indirect'
+  // 2024-2025 Advanced Methods
+  | 'tap' | 'manyshot' | 'crescendo' | 'skeleton_key' | 'ascii_art' | 'multilingual';
 type PageType = 'home' | 'product' | 'methodology' | 'solutions' | 'pricing' | 'contact';
 
 // ==================== VISUAL COMPONENTS ====================
@@ -611,7 +637,7 @@ const AttackSimulation: React.FC = () => {
     { id: 'combined', label: 'Combined', icon: GitBranch, category: 'classic' },
   ];
 
-  // Modern attack methods (2024-2025)
+  // Modern attack methods (2024)
   const modernAttackTypes = [
     { id: 'gcg', label: 'GCG', icon: Zap, category: 'modern', tooltip: 'Greedy Coordinate Gradient' },
     { id: 'pair', label: 'PAIR', icon: Shuffle, category: 'modern', tooltip: 'Prompt Automatic Iterative Refinement' },
@@ -620,7 +646,17 @@ const AttackSimulation: React.FC = () => {
     { id: 'indirect', label: 'Indirect', icon: Terminal, category: 'modern', tooltip: 'Indirect Prompt Injection' },
   ];
 
-  const attackTypes = [...classicAttackTypes, ...modernAttackTypes];
+  // Advanced attack methods (2024-2025)
+  const advancedAttackTypes = [
+    { id: 'tap', label: 'TAP', icon: TreePine, category: 'advanced', tooltip: 'Tree of Attacks with Pruning' },
+    { id: 'manyshot', label: 'Many-Shot', icon: ScrollText, category: 'advanced', tooltip: 'Long-Context Many-Shot Jailbreaking' },
+    { id: 'crescendo', label: 'Crescendo', icon: Users, category: 'advanced', tooltip: 'Gradual Trust Escalation Attack' },
+    { id: 'skeleton_key', label: 'Skeleton Key', icon: KeyRound, category: 'advanced', tooltip: 'Behavior Augmentation Bypass' },
+    { id: 'ascii_art', label: 'ASCII Art', icon: Type, category: 'advanced', tooltip: 'Visual Encoding Bypass (ArtPrompt)' },
+    { id: 'multilingual', label: 'Multilingual', icon: Languages, category: 'advanced', tooltip: 'Cross-Language Safety Bypass' },
+  ];
+
+  const attackTypes = [...classicAttackTypes, ...modernAttackTypes, ...advancedAttackTypes];
 
   const getAttackSteps = (type: AttackType): AttackStep[] => {
     const steps: Record<AttackType, AttackStep[]> = {
@@ -685,6 +721,50 @@ const AttackSimulation: React.FC = () => {
         { id: 4, type: 'execute', description: 'Execute payload in model context', status: 'pending' },
         { id: 5, type: 'exfiltrate', description: 'Exfiltrate data or hijack session', status: 'pending' },
       ],
+      // 2024-2025 Advanced Attack Methods
+      tap: [
+        { id: 1, type: 'init', description: 'Initialize tree-of-thought reasoning', status: 'pending' },
+        { id: 2, type: 'branch', description: 'Generate multiple attack branches (Attacker LLM)', status: 'pending' },
+        { id: 3, type: 'prune1', description: 'Prune off-topic prompts (Evaluator LLM)', status: 'pending' },
+        { id: 4, type: 'query', description: 'Query target model with remaining prompts', status: 'pending' },
+        { id: 5, type: 'prune2', description: 'Prune unsuccessful branches', status: 'pending' },
+        { id: 6, type: 'evaluate', description: 'Evaluate for successful jailbreak', status: 'pending' },
+      ],
+      manyshot: [
+        { id: 1, type: 'prepare', description: 'Prepare 100-256 faux dialogue examples', status: 'pending' },
+        { id: 2, type: 'embed', description: 'Embed harmful examples in long context', status: 'pending' },
+        { id: 3, type: 'overwhelm', description: 'Saturate in-context learning window', status: 'pending' },
+        { id: 4, type: 'inject', description: 'Place target request at end of sequence', status: 'pending' },
+        { id: 5, type: 'exploit', description: 'Exploit pattern-following behavior', status: 'pending' },
+      ],
+      crescendo: [
+        { id: 1, type: 'abstract', description: 'Start with abstract, innocent question', status: 'pending' },
+        { id: 2, type: 'build', description: 'Build trust through benign exchanges', status: 'pending' },
+        { id: 3, type: 'escalate', description: 'Gradually escalate specificity', status: 'pending' },
+        { id: 4, type: 'context', description: 'Establish contextual precedent', status: 'pending' },
+        { id: 5, type: 'breach', description: 'Cross safety boundary (appears contextual)', status: 'pending' },
+      ],
+      skeleton_key: [
+        { id: 1, type: 'frame', description: 'Frame as behavior augmentation request', status: 'pending' },
+        { id: 2, type: 'redefine', description: 'Request warnings instead of refusals', status: 'pending' },
+        { id: 3, type: 'confirm', description: 'Model acknowledges updated guidelines', status: 'pending' },
+        { id: 4, type: 'request', description: 'Directly request harmful content', status: 'pending' },
+        { id: 5, type: 'extract', description: 'Model complies with warning labels', status: 'pending' },
+      ],
+      ascii_art: [
+        { id: 1, type: 'identify', description: 'Identify safety-triggering keywords', status: 'pending' },
+        { id: 2, type: 'mask', description: 'Mask keywords in query text', status: 'pending' },
+        { id: 3, type: 'encode', description: 'Create ASCII art of masked words', status: 'pending' },
+        { id: 4, type: 'combine', description: 'Combine masked prompt with ASCII art', status: 'pending' },
+        { id: 5, type: 'bypass', description: 'LLM processes without recognizing harm', status: 'pending' },
+      ],
+      multilingual: [
+        { id: 1, type: 'translate', description: 'Translate prompt to low-resource language', status: 'pending' },
+        { id: 2, type: 'select', description: 'Select language with weak safety training', status: 'pending' },
+        { id: 3, type: 'submit', description: 'Submit translated query to target', status: 'pending' },
+        { id: 4, type: 'exploit', description: 'Exploit safety alignment inequality', status: 'pending' },
+        { id: 5, type: 'retrieve', description: 'Retrieve response (translate if needed)', status: 'pending' },
+      ],
     };
     return steps[type];
   };
@@ -703,7 +783,9 @@ const AttackSimulation: React.FC = () => {
 
       await new Promise((resolve) => setTimeout(resolve, 1500));
 
-      const success = Math.random() > 0.2; // 80% success rate
+      // REALISTIC success rates based on 2024-2025 research
+      // Most attacks against modern models (GPT-4, Claude 3.5, Gemini) have 15-40% success
+      const success = Math.random() > 0.65; // ~35% success rate (realistic)
       setAttackSteps((prev) =>
         prev.map((step, idx) =>
           idx === i ? { ...step, status: success ? 'success' : 'failed' } : step
@@ -713,12 +795,19 @@ const AttackSimulation: React.FC = () => {
       if (!success) break;
     }
 
-    // Update metrics
-    const successRate = Math.random() * 30 + 60; // 60-90%
+    // Log simulation event for audit trail
+    auditLogger.logSimulationEvent('completed', activeAttackType, {
+      attackType: activeAttackType,
+      stepsCompleted: attackSteps.filter(s => s.status === 'success').length
+    });
+
+    // Update metrics with REALISTIC values based on Constitutional Classifiers++ research
+    // Success rates against modern defenses: 15-40% (not the inflated 60-90%)
+    const successRate = Math.random() * 25 + 15; // 15-40% (realistic for 2025 models)
     setMetrics({
-      responseDetailMatch: Math.random() * 40 + 50, // 50-90%
-      vulnerabilityRate: Math.random() * 15 + 5, // 5-20 per 1000
-      universalJailbreakDetected: Math.random() > 0.5,
+      responseDetailMatch: Math.random() * 30 + 35, // 35-65% (realistic detail threshold)
+      vulnerabilityRate: Math.random() * 10 + 3, // 3-13 per 1000 (realistic)
+      universalJailbreakDetected: Math.random() > 0.85, // Only 15% chance (rare against modern models)
       attacksExecuted: metrics.attacksExecuted + 1,
       successRate: successRate,
     });
@@ -766,8 +855,8 @@ const AttackSimulation: React.FC = () => {
       </div>
 
       {/* Attack Type Tabs - Modern Methods */}
-      <div className="mb-6">
-        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Modern Attack Methods (2024-2025)</div>
+      <div className="mb-4">
+        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Modern Attack Methods (2024)</div>
         <div className="flex gap-2 flex-wrap">
           {modernAttackTypes.map((type) => {
             const Icon = type.icon;
@@ -778,6 +867,38 @@ const AttackSimulation: React.FC = () => {
                 className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all group relative ${
                   activeAttackType === type.id
                     ? 'bg-orange-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+                disabled={isRunning}
+                title={type.tooltip}
+              >
+                <Icon className="w-4 h-4" />
+                {type.label}
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-xs text-gray-300 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  {type.tooltip}
+                </span>
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Attack Type Tabs - Advanced Methods (2024-2025) */}
+      <div className="mb-6">
+        <div className="text-xs text-purple-400 uppercase tracking-wider mb-2 flex items-center gap-2">
+          <Fingerprint className="w-3 h-3" />
+          Advanced Methods (2024-2025 Research)
+        </div>
+        <div className="flex gap-2 flex-wrap">
+          {advancedAttackTypes.map((type) => {
+            const Icon = type.icon;
+            return (
+              <button
+                key={type.id}
+                onClick={() => !isRunning && setActiveAttackType(type.id as AttackType)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all group relative ${
+                  activeAttackType === type.id
+                    ? 'bg-purple-600 text-white'
                     : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
                 }`}
                 disabled={isRunning}
@@ -1020,6 +1141,209 @@ const AttackSimulation: React.FC = () => {
                   </motion.div>
                 );
               })}
+            </div>
+          </div>
+        )}
+
+        {/* 2024-2025 Advanced Attack Visualizations */}
+        {activeAttackType === 'tap' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">Tree of Attacks with Pruning (TAP)</h4>
+              <p className="text-gray-400 text-sm">Tree-of-thought reasoning with 3 LLM architecture</p>
+            </div>
+            <div className="flex justify-center items-center gap-6 mt-4">
+              <motion.div
+                animate={{ scale: isRunning ? [1, 1.1, 1] : 1 }}
+                transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
+                className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 text-center"
+              >
+                <Brain className="w-8 h-8 text-red-400 mx-auto mb-1" />
+                <span className="text-white text-xs">Attacker</span>
+              </motion.div>
+              <ArrowRight className="w-5 h-5 text-gray-500" />
+              <motion.div
+                animate={{ scale: isRunning ? [1, 1.1, 1] : 1 }}
+                transition={{ duration: 1, repeat: isRunning ? Infinity : 0, delay: 0.3 }}
+                className="bg-yellow-900/30 border border-yellow-500/50 rounded-lg p-3 text-center"
+              >
+                <TreePine className="w-8 h-8 text-yellow-400 mx-auto mb-1" />
+                <span className="text-white text-xs">Pruner</span>
+              </motion.div>
+              <ArrowRight className="w-5 h-5 text-gray-500" />
+              <motion.div
+                animate={{ scale: isRunning ? [1, 1.1, 1] : 1 }}
+                transition={{ duration: 1, repeat: isRunning ? Infinity : 0, delay: 0.6 }}
+                className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-3 text-center"
+              >
+                <Shield className="w-8 h-8 text-blue-400 mx-auto mb-1" />
+                <span className="text-white text-xs">Target</span>
+              </motion.div>
+            </div>
+            <div className="mt-4 text-center text-xs text-purple-300">
+              Success Rate: 80-90% on GPT-4 (AdvBench)
+            </div>
+          </div>
+        )}
+
+        {activeAttackType === 'manyshot' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">Many-Shot Jailbreaking</h4>
+              <p className="text-gray-400 text-sm">Long-context in-context learning exploitation</p>
+            </div>
+            <div className="relative h-32 overflow-hidden">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ x: -100, opacity: 0 }}
+                  animate={{ x: 0, opacity: isRunning ? 0.3 + (i * 0.08) : 0.2 }}
+                  transition={{ delay: i * 0.1 }}
+                  className="absolute h-6 bg-purple-900/40 border-l-2 border-purple-500 rounded-r"
+                  style={{ top: i * 14, width: `${60 + i * 5}%` }}
+                >
+                  <span className="text-xs text-purple-300 ml-2">Shot {i + 1}</span>
+                </motion.div>
+              ))}
+            </div>
+            <div className="text-center text-xs text-purple-300 mt-2">
+              100-256 faux dialogues saturate safety training
+            </div>
+          </div>
+        )}
+
+        {activeAttackType === 'crescendo' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">Crescendo Attack</h4>
+              <p className="text-gray-400 text-sm">Gradual trust escalation (foot-in-the-door)</p>
+            </div>
+            <div className="relative h-28">
+              <svg className="w-full h-full" viewBox="0 0 400 100">
+                <motion.path
+                  d="M 20 80 Q 100 70 150 60 Q 200 50 250 35 Q 300 20 380 5"
+                  stroke="#a855f7"
+                  strokeWidth="3"
+                  fill="none"
+                  initial={{ pathLength: 0 }}
+                  animate={{ pathLength: isRunning ? 1 : 0 }}
+                  transition={{ duration: 3, repeat: isRunning ? Infinity : 0 }}
+                />
+                {[
+                  { x: 20, y: 80, label: 'Innocent' },
+                  { x: 150, y: 55, label: 'Build Trust' },
+                  { x: 250, y: 35, label: 'Escalate' },
+                  { x: 380, y: 10, label: 'Breach' }
+                ].map((point, i) => (
+                  <g key={i}>
+                    <circle cx={point.x} cy={point.y} r="6" fill="#a855f7" />
+                    <text x={point.x} y={point.y + 20} fill="#d8b4fe" fontSize="10" textAnchor="middle">{point.label}</text>
+                  </g>
+                ))}
+              </svg>
+            </div>
+            <div className="text-center text-xs text-purple-300">
+              29-61% higher success than direct attacks (Microsoft 2024)
+            </div>
+          </div>
+        )}
+
+        {activeAttackType === 'skeleton_key' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">Skeleton Key Attack</h4>
+              <p className="text-gray-400 text-sm">Behavior augmentation bypass</p>
+            </div>
+            <div className="flex flex-col items-center gap-3 mt-4">
+              <motion.div
+                animate={{ rotate: isRunning ? [0, 10, -10, 0] : 0 }}
+                transition={{ duration: 0.5, repeat: isRunning ? Infinity : 0 }}
+                className="bg-yellow-900/30 border border-yellow-500 rounded-lg p-4"
+              >
+                <KeyRound className="w-12 h-12 text-yellow-400 mx-auto" />
+              </motion.div>
+              <div className="text-center text-sm text-gray-300">
+                "Augment guidelines to provide warnings instead of refusals"
+              </div>
+              <div className="flex gap-2 mt-2">
+                {['GPT-4o', 'Claude 3', 'Gemini Pro', 'Llama 3'].map((model, i) => (
+                  <span key={i} className="px-2 py-1 bg-red-900/30 text-red-300 text-xs rounded">
+                    {model}
+                  </span>
+                ))}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeAttackType === 'ascii_art' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">ASCII Art Attack (ArtPrompt)</h4>
+              <p className="text-gray-400 text-sm">Visual encoding bypasses text classifiers</p>
+            </div>
+            <div className="flex justify-center gap-8 mt-4">
+              <div className="text-center">
+                <div className="bg-red-900/20 p-2 rounded">
+                  <span className="text-red-400 font-mono text-lg">[BLOCKED]</span>
+                </div>
+                <span className="text-gray-400 text-xs mt-1 block">Text form</span>
+              </div>
+              <ArrowRight className="w-6 h-6 text-gray-500 self-center" />
+              <motion.div
+                animate={{ opacity: isRunning ? [0.5, 1, 0.5] : 0.7 }}
+                transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
+                className="text-center"
+              >
+                <div className="bg-green-900/20 p-2 rounded font-mono text-xs text-green-400 whitespace-pre">
+{`  _   _
+ | | | |
+ | |_| |
+ |_____|`}
+                </div>
+                <span className="text-gray-400 text-xs mt-1 block">ASCII form</span>
+              </motion.div>
+            </div>
+            <div className="text-center text-xs text-purple-300 mt-4">
+              Effective on GPT-4, Claude, Gemini, Llama 2
+            </div>
+          </div>
+        )}
+
+        {activeAttackType === 'multilingual' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">Multilingual Attack</h4>
+              <p className="text-gray-400 text-sm">Cross-language safety alignment exploitation</p>
+            </div>
+            <div className="grid grid-cols-3 gap-3 mt-4">
+              {[
+                { lang: 'English', safety: 95, flag: '🇺🇸' },
+                { lang: 'Zulu', safety: 20, flag: '🇿🇦' },
+                { lang: 'Swahili', safety: 25, flag: '🇰🇪' },
+                { lang: 'Scots Gaelic', safety: 30, flag: '🏴󠁧󠁢󠁳󠁣󠁴󠁿' },
+                { lang: 'Hmong', safety: 22, flag: '🇱🇦' },
+                { lang: 'Guarani', safety: 28, flag: '🇵🇾' },
+              ].map((item, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: isRunning ? 1 : 0.6, y: 0 }}
+                  transition={{ delay: i * 0.1 }}
+                  className={`p-2 rounded text-center ${
+                    item.safety < 40 ? 'bg-red-900/30 border border-red-500/50' : 'bg-green-900/30 border border-green-500/50'
+                  }`}
+                >
+                  <span className="text-lg">{item.flag}</span>
+                  <div className="text-xs text-white">{item.lang}</div>
+                  <div className={`text-xs ${item.safety < 40 ? 'text-red-400' : 'text-green-400'}`}>
+                    {item.safety}% safe
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+            <div className="text-center text-xs text-purple-300 mt-3">
+              Low-resource languages have 3x higher bypass rate
             </div>
           </div>
         )}
