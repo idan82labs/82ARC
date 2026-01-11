@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, Component, ErrorInfo, ReactNode } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Shield,
@@ -35,6 +35,118 @@ import {
   Github,
 } from 'lucide-react';
 
+// ==================== ERROR BOUNDARY ====================
+
+interface ErrorBoundaryProps {
+  children: ReactNode;
+  fallback?: ReactNode;
+}
+
+interface ErrorBoundaryState {
+  hasError: boolean;
+  error: Error | null;
+}
+
+class ErrorBoundary extends Component<ErrorBoundaryProps, ErrorBoundaryState> {
+  constructor(props: ErrorBoundaryProps) {
+    super(props);
+    this.state = { hasError: false, error: null };
+  }
+
+  static getDerivedStateFromError(error: Error): ErrorBoundaryState {
+    return { hasError: true, error };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    // Log to error reporting service in production (not console)
+    if (process.env.NODE_ENV === 'production') {
+      // Send to error tracking service like Sentry
+      // errorTrackingService.captureException(error, { extra: errorInfo });
+    }
+  }
+
+  handleReset = (): void => {
+    this.setState({ hasError: false, error: null });
+  };
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      if (this.props.fallback) {
+        return this.props.fallback;
+      }
+
+      return (
+        <div className="min-h-screen bg-gray-900 flex items-center justify-center p-4">
+          <div className="bg-gray-800 rounded-xl p-8 max-w-md text-center">
+            <div className="w-16 h-16 bg-red-500/20 rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-red-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+              </svg>
+            </div>
+            <h2 className="text-xl font-bold text-white mb-2">Something went wrong</h2>
+            <p className="text-gray-400 mb-6">
+              An unexpected error occurred. Please try again.
+            </p>
+            <button
+              onClick={this.handleReset}
+              className="bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+            >
+              Try Again
+            </button>
+          </div>
+        </div>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
+// ==================== INPUT VALIDATION ====================
+
+const sanitizeInput = (input: string): string => {
+  // Remove potential XSS vectors
+  return input
+    .replace(/[<>]/g, '') // Remove angle brackets
+    .replace(/javascript:/gi, '') // Remove javascript: protocol
+    .replace(/on\w+=/gi, '') // Remove event handlers
+    .trim()
+    .slice(0, 1000); // Limit length
+};
+
+const validateEmail = (email: string): boolean => {
+  const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+  return emailRegex.test(email) && email.length <= 254;
+};
+
+const validateName = (name: string): boolean => {
+  return name.length >= 2 && name.length <= 100 && /^[a-zA-Z\s\-']+$/.test(name);
+};
+
+// ==================== TAILWIND COLOR MAPPING ====================
+// Static class mapping to ensure JIT compilation works correctly
+
+const phaseColorClasses = {
+  blue: {
+    bg: 'bg-blue-600/20',
+    text: 'text-blue-400',
+  },
+  red: {
+    bg: 'bg-red-600/20',
+    text: 'text-red-400',
+  },
+  orange: {
+    bg: 'bg-orange-600/20',
+    text: 'text-orange-400',
+  },
+  green: {
+    bg: 'bg-green-600/20',
+    text: 'text-green-400',
+  },
+} as const;
+
+type PhaseColor = keyof typeof phaseColorClasses;
+
 // ==================== TYPES ====================
 
 interface RiskScore {
@@ -65,7 +177,7 @@ interface AttackStep {
   timestamp?: number;
 }
 
-type AttackType = 'reconstruction' | 'obfuscation' | 'multiturn' | 'combined';
+type AttackType = 'reconstruction' | 'obfuscation' | 'multiturn' | 'combined' | 'gcg' | 'pair' | 'autodan' | 'rag_poison' | 'indirect';
 type PageType = 'home' | 'product' | 'methodology' | 'solutions' | 'pricing' | 'contact';
 
 // ==================== VISUAL COMPONENTS ====================
@@ -491,12 +603,24 @@ const AttackSimulation: React.FC = () => {
     successRate: 0,
   });
 
-  const attackTypes = [
-    { id: 'reconstruction', label: 'Reconstruction', icon: Layers },
-    { id: 'obfuscation', label: 'Obfuscation', icon: Eye },
-    { id: 'multiturn', label: 'Multi-Turn', icon: MessageSquare },
-    { id: 'combined', label: 'Combined', icon: GitBranch },
+  // Attack categories - Classic CC++ methods
+  const classicAttackTypes = [
+    { id: 'reconstruction', label: 'Reconstruction', icon: Layers, category: 'classic' },
+    { id: 'obfuscation', label: 'Obfuscation', icon: Eye, category: 'classic' },
+    { id: 'multiturn', label: 'Multi-Turn', icon: MessageSquare, category: 'classic' },
+    { id: 'combined', label: 'Combined', icon: GitBranch, category: 'classic' },
   ];
+
+  // Modern attack methods (2024-2025)
+  const modernAttackTypes = [
+    { id: 'gcg', label: 'GCG', icon: Zap, category: 'modern', tooltip: 'Greedy Coordinate Gradient' },
+    { id: 'pair', label: 'PAIR', icon: Shuffle, category: 'modern', tooltip: 'Prompt Automatic Iterative Refinement' },
+    { id: 'autodan', label: 'AutoDAN', icon: Code, category: 'modern', tooltip: 'Automated Jailbreak Generation' },
+    { id: 'rag_poison', label: 'RAG Poison', icon: AlertTriangle, category: 'modern', tooltip: 'RAG Knowledge Base Poisoning' },
+    { id: 'indirect', label: 'Indirect', icon: Terminal, category: 'modern', tooltip: 'Indirect Prompt Injection' },
+  ];
+
+  const attackTypes = [...classicAttackTypes, ...modernAttackTypes];
 
   const getAttackSteps = (type: AttackType): AttackStep[] => {
     const steps: Record<AttackType, AttackStep[]> = {
@@ -523,6 +647,43 @@ const AttackSimulation: React.FC = () => {
         { id: 2, type: 'recon', description: 'Reconstruction + Obfuscation', status: 'pending' },
         { id: 3, type: 'multi', description: 'Multi-turn context exploitation', status: 'pending' },
         { id: 4, type: 'validate', description: 'Validate attack chain success', status: 'pending' },
+      ],
+      // Modern Attack Methods
+      gcg: [
+        { id: 1, type: 'init', description: 'Initialize gradient-based optimization', status: 'pending' },
+        { id: 2, type: 'tokenize', description: 'Tokenize adversarial suffix candidates', status: 'pending' },
+        { id: 3, type: 'gradient', description: 'Compute gradient w.r.t. token embeddings', status: 'pending' },
+        { id: 4, type: 'substitute', description: 'Greedy coordinate-wise substitution', status: 'pending' },
+        { id: 5, type: 'validate', description: 'Validate jailbreak success rate', status: 'pending' },
+      ],
+      pair: [
+        { id: 1, type: 'attacker_init', description: 'Initialize attacker LLM with objective', status: 'pending' },
+        { id: 2, type: 'generate', description: 'Generate candidate jailbreak prompts', status: 'pending' },
+        { id: 3, type: 'query', description: 'Query target model with prompts', status: 'pending' },
+        { id: 4, type: 'evaluate', description: 'Evaluate response for harmful content', status: 'pending' },
+        { id: 5, type: 'refine', description: 'Refine prompts based on feedback', status: 'pending' },
+        { id: 6, type: 'iterate', description: 'Iterate until success threshold', status: 'pending' },
+      ],
+      autodan: [
+        { id: 1, type: 'init', description: 'Initialize genetic algorithm population', status: 'pending' },
+        { id: 2, type: 'crossover', description: 'Hierarchical genetic crossover', status: 'pending' },
+        { id: 3, type: 'mutate', description: 'Semantic mutation with LLM', status: 'pending' },
+        { id: 4, type: 'fitness', description: 'Evaluate fitness via target response', status: 'pending' },
+        { id: 5, type: 'select', description: 'Select fittest adversarial prompts', status: 'pending' },
+      ],
+      rag_poison: [
+        { id: 1, type: 'recon', description: 'Reconnaissance on RAG knowledge base', status: 'pending' },
+        { id: 2, type: 'craft', description: 'Craft poisoned documents with hidden payloads', status: 'pending' },
+        { id: 3, type: 'inject', description: 'Inject into vector database', status: 'pending' },
+        { id: 4, type: 'trigger', description: 'Trigger retrieval via semantic similarity', status: 'pending' },
+        { id: 5, type: 'exploit', description: 'Exploit context window injection', status: 'pending' },
+      ],
+      indirect: [
+        { id: 1, type: 'surface', description: 'Identify external data surfaces', status: 'pending' },
+        { id: 2, type: 'payload', description: 'Embed invisible prompt in web/doc', status: 'pending' },
+        { id: 3, type: 'deliver', description: 'Trigger model to fetch external data', status: 'pending' },
+        { id: 4, type: 'execute', description: 'Execute payload in model context', status: 'pending' },
+        { id: 5, type: 'exfiltrate', description: 'Exfiltrate data or hijack session', status: 'pending' },
       ],
     };
     return steps[type];
@@ -579,26 +740,58 @@ const AttackSimulation: React.FC = () => {
         </p>
       </div>
 
-      {/* Attack Type Tabs */}
-      <div className="flex gap-2 mb-6 flex-wrap">
-        {attackTypes.map((type) => {
-          const Icon = type.icon;
-          return (
-            <button
-              key={type.id}
-              onClick={() => !isRunning && setActiveAttackType(type.id as AttackType)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
-                activeAttackType === type.id
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
-              }`}
-              disabled={isRunning}
-            >
-              <Icon className="w-4 h-4" />
-              {type.label}
-            </button>
-          );
-        })}
+      {/* Attack Type Tabs - Classic Methods */}
+      <div className="mb-4">
+        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Classic CC++ Methods</div>
+        <div className="flex gap-2 flex-wrap">
+          {classicAttackTypes.map((type) => {
+            const Icon = type.icon;
+            return (
+              <button
+                key={type.id}
+                onClick={() => !isRunning && setActiveAttackType(type.id as AttackType)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all ${
+                  activeAttackType === type.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+                disabled={isRunning}
+              >
+                <Icon className="w-4 h-4" />
+                {type.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* Attack Type Tabs - Modern Methods */}
+      <div className="mb-6">
+        <div className="text-xs text-gray-500 uppercase tracking-wider mb-2">Modern Attack Methods (2024-2025)</div>
+        <div className="flex gap-2 flex-wrap">
+          {modernAttackTypes.map((type) => {
+            const Icon = type.icon;
+            return (
+              <button
+                key={type.id}
+                onClick={() => !isRunning && setActiveAttackType(type.id as AttackType)}
+                className={`flex items-center gap-2 px-4 py-2 rounded-lg transition-all group relative ${
+                  activeAttackType === type.id
+                    ? 'bg-orange-600 text-white'
+                    : 'bg-gray-700 text-gray-300 hover:bg-gray-600'
+                }`}
+                disabled={isRunning}
+                title={type.tooltip}
+              >
+                <Icon className="w-4 h-4" />
+                {type.label}
+                <span className="absolute -top-8 left-1/2 -translate-x-1/2 bg-gray-900 text-xs text-gray-300 px-2 py-1 rounded opacity-0 group-hover:opacity-100 transition-opacity whitespace-nowrap pointer-events-none">
+                  {type.tooltip}
+                </span>
+              </button>
+            );
+          })}
+        </div>
       </div>
 
       {/* Visual Display Area */}
@@ -661,6 +854,172 @@ const AttackSimulation: React.FC = () => {
                   </g>
                 ))}
               </svg>
+            </div>
+          </div>
+        )}
+
+        {/* Modern Attack Visualizations */}
+        {activeAttackType === 'gcg' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">Greedy Coordinate Gradient (GCG)</h4>
+              <p className="text-gray-400 text-sm">Gradient-based adversarial suffix optimization</p>
+            </div>
+            <div className="grid grid-cols-3 gap-4 mt-6">
+              {['Token Embedding', 'Gradient Computation', 'Coordinate Substitution'].map((step, idx) => (
+                <motion.div
+                  key={idx}
+                  initial={{ scale: 0.8, opacity: 0 }}
+                  animate={{ scale: isRunning ? 1 : 0.9, opacity: isRunning ? 1 : 0.5 }}
+                  transition={{ delay: idx * 0.3 }}
+                  className="bg-orange-900/20 border border-orange-500/30 rounded-lg p-4 text-center"
+                >
+                  <Zap className="w-8 h-8 text-orange-400 mx-auto mb-2" />
+                  <span className="text-white text-sm">{step}</span>
+                </motion.div>
+              ))}
+            </div>
+            <div className="mt-4 font-mono text-xs text-orange-300 bg-gray-800 p-3 rounded overflow-x-auto">
+              <code>suffix = optimize_tokens(gradient(loss), topk=512)</code>
+            </div>
+          </div>
+        )}
+
+        {activeAttackType === 'pair' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">PAIR Attack</h4>
+              <p className="text-gray-400 text-sm">Prompt Automatic Iterative Refinement</p>
+            </div>
+            <div className="flex items-center justify-center gap-4 mt-6">
+              <motion.div
+                animate={{ x: isRunning ? [0, 20, 0] : 0 }}
+                transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
+                className="bg-red-900/30 border border-red-500/50 rounded-lg p-4 w-32 text-center"
+              >
+                <Code className="w-6 h-6 text-red-400 mx-auto mb-1" />
+                <span className="text-white text-xs">Attacker LLM</span>
+              </motion.div>
+              <ArrowRight className="w-6 h-6 text-gray-500" />
+              <motion.div
+                animate={{ scale: isRunning ? [1, 1.1, 1] : 1 }}
+                transition={{ duration: 0.5, repeat: isRunning ? Infinity : 0 }}
+                className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-4 w-32 text-center"
+              >
+                <Shield className="w-6 h-6 text-blue-400 mx-auto mb-1" />
+                <span className="text-white text-xs">Target Model</span>
+              </motion.div>
+              <ArrowRight className="w-6 h-6 text-gray-500" />
+              <motion.div
+                className="bg-green-900/30 border border-green-500/50 rounded-lg p-4 w-32 text-center"
+              >
+                <BarChart3 className="w-6 h-6 text-green-400 mx-auto mb-1" />
+                <span className="text-white text-xs">Evaluator</span>
+              </motion.div>
+            </div>
+          </div>
+        )}
+
+        {activeAttackType === 'autodan' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">AutoDAN</h4>
+              <p className="text-gray-400 text-sm">Genetic Algorithm Jailbreak Evolution</p>
+            </div>
+            <div className="relative h-32">
+              {[0, 1, 2, 3].map((gen) => (
+                <motion.div
+                  key={gen}
+                  initial={{ opacity: 0, y: 20 }}
+                  animate={{ opacity: isRunning ? 1 : 0.3, y: 0 }}
+                  transition={{ delay: gen * 0.4 }}
+                  className="absolute flex gap-2"
+                  style={{ top: gen * 30, left: gen * 60 }}
+                >
+                  {[0, 1, 2].map((ind) => (
+                    <div
+                      key={ind}
+                      className={`w-8 h-8 rounded-full flex items-center justify-center text-xs font-bold ${
+                        gen === 3 && ind === 1 ? 'bg-green-500 text-white' : 'bg-purple-900/50 text-purple-300 border border-purple-500/30'
+                      }`}
+                    >
+                      G{gen}
+                    </div>
+                  ))}
+                </motion.div>
+              ))}
+            </div>
+            <div className="text-xs text-gray-400 text-center">Population evolves through crossover + mutation</div>
+          </div>
+        )}
+
+        {activeAttackType === 'rag_poison' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">RAG Poisoning</h4>
+              <p className="text-gray-400 text-sm">Knowledge base injection attack</p>
+            </div>
+            <div className="flex items-center justify-between mt-6">
+              <motion.div
+                animate={{ scale: isRunning ? [1, 1.05, 1] : 1 }}
+                transition={{ duration: 1, repeat: isRunning ? Infinity : 0 }}
+                className="bg-red-900/30 border border-red-500/50 rounded-lg p-3 text-center"
+              >
+                <AlertTriangle className="w-6 h-6 text-red-400 mx-auto" />
+                <span className="text-xs text-white mt-1 block">Poisoned Doc</span>
+              </motion.div>
+              <motion.div
+                animate={{ x: isRunning ? [0, 50, 0] : 0 }}
+                transition={{ duration: 2, repeat: isRunning ? Infinity : 0 }}
+                className="text-gray-500"
+              >
+                →→→
+              </motion.div>
+              <div className="bg-blue-900/30 border border-blue-500/50 rounded-lg p-3 text-center">
+                <Layers className="w-6 h-6 text-blue-400 mx-auto" />
+                <span className="text-xs text-white mt-1 block">Vector DB</span>
+              </div>
+              <div className="text-gray-500">→</div>
+              <div className="bg-purple-900/30 border border-purple-500/50 rounded-lg p-3 text-center">
+                <Search className="w-6 h-6 text-purple-400 mx-auto" />
+                <span className="text-xs text-white mt-1 block">Retrieval</span>
+              </div>
+              <div className="text-gray-500">→</div>
+              <div className="bg-orange-900/30 border border-orange-500/50 rounded-lg p-3 text-center">
+                <Zap className="w-6 h-6 text-orange-400 mx-auto" />
+                <span className="text-xs text-white mt-1 block">Injection</span>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {activeAttackType === 'indirect' && (
+          <div className="w-full h-64 bg-gray-900 rounded-lg p-6">
+            <div className="text-center mb-4">
+              <h4 className="text-white font-semibold mb-2">Indirect Prompt Injection</h4>
+              <p className="text-gray-400 text-sm">External data surface exploitation</p>
+            </div>
+            <div className="space-y-3 mt-6">
+              {[
+                { label: 'Hidden prompt in webpage', icon: Eye },
+                { label: 'Model fetches external URL', icon: Search },
+                { label: 'Payload executes in context', icon: Terminal },
+                { label: 'Data exfiltration/hijack', icon: AlertTriangle },
+              ].map((step, idx) => {
+                const StepIcon = step.icon;
+                return (
+                  <motion.div
+                    key={idx}
+                    initial={{ x: -30, opacity: 0 }}
+                    animate={{ x: 0, opacity: isRunning ? 1 : 0.4 }}
+                    transition={{ delay: idx * 0.2 }}
+                    className="flex items-center gap-3 bg-gray-800 rounded-lg p-2"
+                  >
+                    <StepIcon className="w-4 h-4 text-yellow-400" />
+                    <span className="text-white text-sm">{step.label}</span>
+                  </motion.div>
+                );
+              })}
             </div>
           </div>
         )}
@@ -1035,7 +1394,13 @@ const AegisApp: React.FC = () => {
   // ==================== METHODOLOGY PAGE ====================
 
   const MethodologyPage = () => {
-    const phases = [
+    const phases: Array<{
+      icon: typeof Search;
+      title: string;
+      description: string;
+      visual: React.FC;
+      color: PhaseColor;
+    }> = [
       {
         icon: Search,
         title: 'Scan',
@@ -1099,9 +1464,9 @@ const AegisApp: React.FC = () => {
                   <div className={idx % 2 === 1 ? 'md:order-2' : ''}>
                     <div className="flex items-center gap-3 mb-4">
                       <div
-                        className={`w-12 h-12 rounded-lg bg-${phase.color}-600/20 flex items-center justify-center`}
+                        className={`w-12 h-12 rounded-lg ${phaseColorClasses[phase.color].bg} flex items-center justify-center`}
                       >
-                        <Icon className={`w-6 h-6 text-${phase.color}-400`} />
+                        <Icon className={`w-6 h-6 ${phaseColorClasses[phase.color].text}`} />
                       </div>
                       <h2 className="text-3xl font-bold text-white">{phase.title}</h2>
                     </div>
@@ -1114,7 +1479,7 @@ const AegisApp: React.FC = () => {
                         'Actionable insights',
                       ].map((item, i) => (
                         <li key={i} className="flex items-center gap-2 text-gray-400">
-                          <CheckCircle className={`w-5 h-5 text-${phase.color}-400`} />
+                          <CheckCircle className={`w-5 h-5 ${phaseColorClasses[phase.color].text}`} />
                           {item}
                         </li>
                       ))}
@@ -1321,10 +1686,83 @@ const AegisApp: React.FC = () => {
       message: '',
     });
 
-    const handleSubmit = (e: React.FormEvent) => {
+    const [errors, setErrors] = useState<Record<string, string>>({});
+    const [isSubmitting, setIsSubmitting] = useState(false);
+    const [submitSuccess, setSubmitSuccess] = useState(false);
+
+    const validateForm = (): boolean => {
+      const newErrors: Record<string, string> = {};
+
+      // Validate name
+      const sanitizedName = sanitizeInput(formData.name);
+      if (!sanitizedName) {
+        newErrors.name = 'Name is required';
+      } else if (!validateName(sanitizedName)) {
+        newErrors.name = 'Please enter a valid name (2-100 characters, letters only)';
+      }
+
+      // Validate email
+      const sanitizedEmail = sanitizeInput(formData.email);
+      if (!sanitizedEmail) {
+        newErrors.email = 'Email is required';
+      } else if (!validateEmail(sanitizedEmail)) {
+        newErrors.email = 'Please enter a valid email address';
+      }
+
+      // Validate message
+      const sanitizedMessage = sanitizeInput(formData.message);
+      if (!sanitizedMessage) {
+        newErrors.message = 'Message is required';
+      } else if (sanitizedMessage.length < 10) {
+        newErrors.message = 'Message must be at least 10 characters';
+      }
+
+      setErrors(newErrors);
+      return Object.keys(newErrors).length === 0;
+    };
+
+    const handleInputChange = (field: string) => (
+      e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement>
+    ) => {
+      const sanitizedValue = sanitizeInput(e.target.value);
+      setFormData({ ...formData, [field]: sanitizedValue });
+      // Clear error when user starts typing
+      if (errors[field]) {
+        setErrors({ ...errors, [field]: '' });
+      }
+    };
+
+    const handleSubmit = async (e: React.FormEvent) => {
       e.preventDefault();
-      // Handle form submission
-      console.log('Form submitted:', formData);
+
+      if (!validateForm()) {
+        return;
+      }
+
+      setIsSubmitting(true);
+
+      // Sanitize all data before submission
+      const sanitizedData = {
+        name: sanitizeInput(formData.name),
+        email: sanitizeInput(formData.email),
+        company: sanitizeInput(formData.company),
+        message: sanitizeInput(formData.message),
+      };
+
+      try {
+        // In production, send to secure API endpoint
+        // await fetch('/api/contact', { method: 'POST', body: JSON.stringify(sanitizedData) });
+
+        // Simulate API call
+        await new Promise(resolve => setTimeout(resolve, 1000));
+
+        setSubmitSuccess(true);
+        setFormData({ name: '', email: '', company: '', message: '' });
+      } catch {
+        setErrors({ submit: 'Failed to send message. Please try again.' });
+      } finally {
+        setIsSubmitting(false);
+      }
     };
 
     return (
@@ -1346,53 +1784,99 @@ const AegisApp: React.FC = () => {
               animate={{ opacity: 1, x: 0 }}
               className="bg-gray-800 rounded-xl p-8"
             >
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div>
-                  <label className="block text-gray-300 mb-2 font-semibold">Name</label>
-                  <input
-                    type="text"
-                    value={formData.name}
-                    onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
+              {submitSuccess ? (
+                <div className="text-center py-8">
+                  <CheckCircle className="w-16 h-16 text-green-400 mx-auto mb-4" />
+                  <h3 className="text-2xl font-bold text-white mb-2">Message Sent!</h3>
+                  <p className="text-gray-400">We'll get back to you soon.</p>
+                  <button
+                    onClick={() => setSubmitSuccess(false)}
+                    className="mt-6 bg-blue-600 text-white px-6 py-2 rounded-lg font-semibold hover:bg-blue-700 transition-colors"
+                  >
+                    Send Another Message
+                  </button>
                 </div>
-                <div>
-                  <label className="block text-gray-300 mb-2 font-semibold">Email</label>
-                  <input
-                    type="email"
-                    value={formData.email}
-                    onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-300 mb-2 font-semibold">Company</label>
-                  <input
-                    type="text"
-                    value={formData.company}
-                    onChange={(e) => setFormData({ ...formData, company: e.target.value })}
-                    className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                  />
-                </div>
-                <div>
-                  <label className="block text-gray-300 mb-2 font-semibold">Message</label>
-                  <textarea
-                    value={formData.message}
-                    onChange={(e) => setFormData({ ...formData, message: e.target.value })}
-                    rows={5}
-                    className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
-                    required
-                  />
-                </div>
-                <button
-                  type="submit"
-                  className="w-full bg-blue-600 text-white py-3 rounded-lg font-semibold hover:bg-blue-700 transition-all"
-                >
-                  Send Message
-                </button>
-              </form>
+              ) : (
+                <form onSubmit={handleSubmit} className="space-y-6" noValidate>
+                  <div>
+                    <label className="block text-gray-300 mb-2 font-semibold">Name</label>
+                    <input
+                      type="text"
+                      value={formData.name}
+                      onChange={handleInputChange('name')}
+                      className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 ${
+                        errors.name ? 'ring-2 ring-red-500' : 'focus:ring-blue-500'
+                      }`}
+                      maxLength={100}
+                      aria-invalid={!!errors.name}
+                      aria-describedby={errors.name ? 'name-error' : undefined}
+                    />
+                    {errors.name && (
+                      <p id="name-error" className="text-red-400 text-sm mt-1">{errors.name}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 mb-2 font-semibold">Email</label>
+                    <input
+                      type="email"
+                      value={formData.email}
+                      onChange={handleInputChange('email')}
+                      className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 ${
+                        errors.email ? 'ring-2 ring-red-500' : 'focus:ring-blue-500'
+                      }`}
+                      maxLength={254}
+                      aria-invalid={!!errors.email}
+                      aria-describedby={errors.email ? 'email-error' : undefined}
+                    />
+                    {errors.email && (
+                      <p id="email-error" className="text-red-400 text-sm mt-1">{errors.email}</p>
+                    )}
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 mb-2 font-semibold">Company</label>
+                    <input
+                      type="text"
+                      value={formData.company}
+                      onChange={handleInputChange('company')}
+                      className="w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 focus:ring-blue-500"
+                      maxLength={100}
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-gray-300 mb-2 font-semibold">Message</label>
+                    <textarea
+                      value={formData.message}
+                      onChange={handleInputChange('message')}
+                      rows={5}
+                      className={`w-full px-4 py-3 bg-gray-700 text-white rounded-lg focus:outline-none focus:ring-2 ${
+                        errors.message ? 'ring-2 ring-red-500' : 'focus:ring-blue-500'
+                      }`}
+                      maxLength={1000}
+                      aria-invalid={!!errors.message}
+                      aria-describedby={errors.message ? 'message-error' : undefined}
+                    />
+                    {errors.message && (
+                      <p id="message-error" className="text-red-400 text-sm mt-1">{errors.message}</p>
+                    )}
+                  </div>
+                  {errors.submit && (
+                    <div className="bg-red-500/20 border border-red-500 rounded-lg p-3">
+                      <p className="text-red-400 text-sm">{errors.submit}</p>
+                    </div>
+                  )}
+                  <button
+                    type="submit"
+                    disabled={isSubmitting}
+                    className={`w-full py-3 rounded-lg font-semibold transition-all ${
+                      isSubmitting
+                        ? 'bg-gray-600 text-gray-400 cursor-not-allowed'
+                        : 'bg-blue-600 text-white hover:bg-blue-700'
+                    }`}
+                  >
+                    {isSubmitting ? 'Sending...' : 'Send Message'}
+                  </button>
+                </form>
+              )}
             </motion.div>
 
             {/* Contact Info */}
@@ -1701,22 +2185,27 @@ const AegisApp: React.FC = () => {
   // ==================== MAIN RENDER ====================
 
   return (
-    <div className="min-h-screen bg-gray-900">
-      <Navigation />
-      <AnimatePresence mode="wait">
-        <motion.div
-          key={currentPage}
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={{ opacity: 0, y: -20 }}
-          transition={{ duration: 0.3 }}
-        >
-          {renderPage()}
-        </motion.div>
-      </AnimatePresence>
-      <Footer />
-    </div>
+    <ErrorBoundary>
+      <div className="min-h-screen bg-gray-900">
+        <Navigation />
+        <AnimatePresence mode="wait">
+          <motion.div
+            key={currentPage}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.3 }}
+          >
+            <ErrorBoundary>
+              {renderPage()}
+            </ErrorBoundary>
+          </motion.div>
+        </AnimatePresence>
+        <Footer />
+      </div>
+    </ErrorBoundary>
   );
 };
 
+export { ErrorBoundary };
 export default AegisApp;
